@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev-branch]
   pull_request:
 
 jobs:
@@ -13,6 +13,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.12"
+          activate-environment: true  # creates .venv and puts it on PATH for later steps
       - name: Install dependencies
         run: uv pip install -r requirements.txt
       - name: Lint
