@@ -1,0 +1,30 @@
+[project]
+name = "finnie"
+version = "0.1.0"
+description = "Finnie — multi-agent AI finance education assistant"
+requires-python = ">=3.11,<3.13"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "integration: tests that touch the filesystem index or multiple components",
+    "live: tests that call real external APIs (skipped by default)",
+]
+addopts = "-m 'not live'"
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["src/web_app/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

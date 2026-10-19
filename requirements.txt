@@ -1,0 +1,43 @@
+# --- Agents & LLMs ---
+langgraph>=0.6,<1.1
+langgraph-checkpoint-sqlite>=2.0
+langchain>=0.3
+langchain-openai>=0.3
+langchain-google-genai>=2.1
+langsmith>=0.3
+
+# --- RAG ---
+faiss-cpu>=1.9
+sentence-transformers>=3.3
+python-frontmatter>=1.1
+rank-bm25>=0.2.2
+pypdf>=5.0
+python-docx>=1.1
+beautifulsoup4>=4.12
+
+# --- Market data & news ---
+httpx>=0.27
+yfinance>=0.2.50
+tavily-python>=0.5
+diskcache>=5.6
+tenacity>=9.0
+
+# --- MCP ---
+mcp>=1.6
+
+# --- Web app ---
+streamlit>=1.40
+plotly>=5.24
+pandas>=2.2
+
+# --- Config & validation ---
+pydantic>=2.9
+pydantic-settings>=2.6
+pyyaml>=6.0
+python-dotenv>=1.0
+
+# --- Dev / test ---
+pytest>=8.3
+pytest-cov>=6.0
+pytest-asyncio>=0.24
+ruff>=0.8

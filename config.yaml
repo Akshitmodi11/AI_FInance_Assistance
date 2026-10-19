@@ -1,0 +1,63 @@
+# Non-secret application settings. Secrets live in .env.
+# Any value here can be overridden by an env var, e.g. FINNIE_LLM__PROVIDER=gemini
+
+app:
+  name: Finnie
+  log_level: INFO
+
+llm:
+  provider: openai            # openai | gemini
+  openai:
+    router_model: gpt-4o-mini
+    answer_model: gpt-4o
+  gemini:
+    router_model: gemini-2.0-flash
+    answer_model: gemini-2.0-flash
+  temperature: 0.2
+  timeout_s: 30
+
+rag:
+  articles_dir: data/kb/articles      # .md files (metadata in front-matter)
+  documents_dir: data/kb/documents    # .pdf / .docx / .html files
+  manifest_path: data/kb/manifest.yaml  # metadata for documents_dir
+  index_dir: data/index
+  embedding_model: sentence-transformers/all-MiniLM-L6-v2
+  chunk_size: 800             # characters
+  chunk_overlap: 120
+  retrieval_mode: hybrid      # dense | sparse | hybrid
+  top_k: 5
+  candidate_k: 20             # how many each retriever returns before fusion
+  rrf_k: 60                   # Reciprocal Rank Fusion constant
+  min_score: 0.35             # top dense cosine below this -> "I don't know"
+  categories:
+    - basics
+    - investing
+    - diversification
+    - retirement_tax
+    - goals_budgeting
+    - markets
+
+market_data:
+  providers: [alpha_vantage, yfinance, mock]   # tried in order
+  cache_dir: .cache/market
+  cache_ttl_s: 1800           # 30 min — protects Alpha Vantage's 25 req/day
+  request_timeout_s: 10
+  max_retries: 2
+  alpha_vantage:
+    requests_per_minute: 5
+    requests_per_day: 25
+
+news:
+  providers: [tavily, mock]
+  max_results: 5
+
+goals:
+  # Annual return assumptions by risk appetite (low / expected / high)
+  risk_profiles:
+    conservative: {low: 0.02, expected: 0.04, high: 0.06}
+    moderate:     {low: 0.03, expected: 0.06, high: 0.09}
+    aggressive:   {low: 0.03, expected: 0.08, high: 0.12}
+  inflation: 0.025
+
+memory:
+  checkpoint_db: .cache/checkpoints.sqlite
