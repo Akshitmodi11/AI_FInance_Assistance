@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev-branch]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          activate-environment: true  # creates .venv and puts it on PATH for later steps
+      - name: Install dependencies
+        run: uv pip install -r requirements.txt
+      - name: Lint
+        run: ruff check .
+      - name: Check no secrets are committed
+        run: |
+          if git ls-files | grep -E '(^|/)\.env$'; then echo ".env is committed!"; exit 1; fi
+      - name: Test
+        run: pytest --cov=src --cov-report=term-missing

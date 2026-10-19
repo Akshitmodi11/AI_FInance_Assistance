@@ -1,0 +1,5 @@
+{"id": "q001", "question": "Why shouldn't I put all my money in one stock?", "expected_sources": ["diversification-basics"], "type": "paraphrase"}
+{"id": "q002", "question": "What does diversification not protect against?", "expected_sources": ["diversification-basics"], "type": "concept"}
+{"id": "q003", "question": "Is it bad if one holding is 30% of my portfolio?", "expected_sources": ["diversification-basics"], "type": "paraphrase"}
+{"id": "q900", "question": "How do I mine bitcoin on a home computer?", "expected_sources": [], "type": "out_of_scope"}
+{"id": "q901", "question": "What is the best options strategy for earnings week?", "expected_sources": [], "type": "out_of_scope"}

@@ -1,0 +1,21 @@
+# Metadata for every file in data/kb/documents/ (PDF, Word, HTML have no front-matter).
+# Key = exact file name. Required: title, url, source, category. Optional: tax_year, level.
+# Ingestion fails loudly if a file in documents/ is missing here — no uncitable sources.
+
+documents: {}
+
+# Example entries — uncomment after downloading the files into data/kb/documents/:
+#
+#  p590a.pdf:
+#    title: IRS Publication 590-A — Contributions to IRAs
+#    url: https://www.irs.gov/pub/irs-pdf/p590a.pdf
+#    source: IRS
+#    category: retirement_tax
+#    tax_year: 2025
+#
+#  investor-gov-stocks.html:
+#    title: Stocks (Investor.gov)
+#    url: https://www.investor.gov/introduction-investing/investing-basics/investment-products/stocks
+#    source: SEC Investor.gov
+#    category: investing
+#    level: beginner
