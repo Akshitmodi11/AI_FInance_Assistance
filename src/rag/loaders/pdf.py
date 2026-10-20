@@ -1,4 +1,4 @@
-"""PDF loader — TODO(you).
+"""PDF loader.
 
 Concepts this teaches:
 * PDFs have no "paragraphs", only positioned text. Extraction gives you a string per page,
@@ -23,9 +23,21 @@ Library: ``from pypdf import PdfReader`` → ``reader.pages[i].extract_text()``,
 
 from __future__ import annotations
 
+import re
+from collections import Counter
 from pathlib import Path
 
-from src.rag.models import Document
+from pypdf import PdfReader
+
+from src.rag.models import Document, SourceMeta
+
+_NOISE_LINE = re.compile(
+    r"^[-\s]*(page\s*)?\d+[-\s]*$"  # "12", "Page 12", "- 12 -"
+    r"|^page\s+\d+\s+of\s+\d+"  # "Page 10 of 62  Fileid: …"
+    r"|^userid:"  # "Userid: CPM Schema: …"
+    r"|fileid:",  # "AH XSL/XML Fileid: …" (anywhere in the line)
+    re.IGNORECASE,
+)
 
 
 def load_pdf(path: Path, meta: dict | None = None) -> list[Document]:
@@ -41,7 +53,26 @@ def load_pdf(path: Path, meta: dict | None = None) -> list[Document]:
       ``section`` = :func:`page_sections` for that page (``None`` if the PDF has no bookmarks).
     * ``doc_id = f"{path.stem}:p{page}"``.
     """
-    raise NotImplementedError("TODO(you): implement load_pdf")
+    if meta is None:
+        raise ValueError(f"{path.name}: a PDF needs a manifest.yaml entry to be citable")
+
+    reader = PdfReader(path)
+    raw_pages = [page.extract_text() or "" for page in reader.pages]
+    pages = [clean_page_text(p) for p in strip_repeated_lines(raw_pages)]
+    sections = page_sections(reader)
+
+    docs = []
+    for number, text in enumerate(pages, start=1):
+        if not text:
+            continue  # cover / blank page
+        docs.append(
+            Document(
+                doc_id=f"{path.stem}:p{number}",
+                text=text,
+                meta=SourceMeta(**meta, file_type="pdf", page=number, section=sections.get(number)),
+            )
+        )
+    return docs
 
 
 def strip_repeated_lines(pages: list[str], min_fraction: float = 0.5) -> list[str]:
@@ -56,11 +87,26 @@ def strip_repeated_lines(pages: list[str], min_fraction: float = 0.5) -> list[st
     * the same line appears on at least ``min_fraction`` of the pages.
       Only apply this rule when there are 3+ pages — with 1–2 pages everything "repeats".
 
-    Hints: one compiled ``re`` with ``re.IGNORECASE`` and ``|`` between the patterns;
-    ``collections.Counter`` over ``set(page.splitlines())`` per page counts how many pages
-    each line appears on.
+    Blank lines are kept: they are paragraph breaks for :func:`clean_page_text`.
     """
-    raise NotImplementedError("TODO(you): implement strip_repeated_lines")
+    counts: Counter[str] = Counter()
+    for page in pages:
+        counts.update({line.strip() for line in page.splitlines() if line.strip()})
+
+    repeated: set[str] = set()
+    if len(pages) >= 3:
+        repeated = {line for line, n in counts.items() if n / len(pages) >= min_fraction}
+
+    cleaned = []
+    for page in pages:
+        keep = [
+            line
+            for line in page.splitlines()
+            if not line.strip()  # keep blank lines: they're paragraph breaks
+            or (line.strip() not in repeated and not _NOISE_LINE.search(line.strip()))
+        ]
+        cleaned.append("\n".join(keep))
+    return cleaned
 
 
 def clean_page_text(text: str) -> str:
@@ -76,7 +122,11 @@ def clean_page_text(text: str) -> str:
       space.
     * Collapse runs of spaces/tabs into one space and strip each paragraph.
     """
-    raise NotImplementedError("TODO(you): implement clean_page_text")
+    text = re.sub(r"([A-Za-z])-\n([a-z])", r"\1\2", text)  # retire-\nment → retirement
+    text = text.replace("-\n", "-")  # 1040-\nSR → 1040-SR
+    paragraphs = re.split(r"\n\s*\n", text)  # keep blank-line paragraph breaks
+    cleaned = [" ".join(p.split()) for p in paragraphs]  # all whitespace runs → one space
+    return "\n\n".join(p for p in cleaned if p)
 
 
 def page_sections(reader) -> dict[int, str]:
@@ -90,4 +140,24 @@ def page_sections(reader) -> dict[int, str]:
       or before that page** — i.e. the most specific heading in effect.
     * Pages before the first bookmark get no entry. A PDF without bookmarks → ``{}``.
     """
-    raise NotImplementedError("TODO(you): implement page_sections")
+    bookmarks: list[tuple[int, str]] = []
+
+    def walk(items) -> None:
+        for item in items:
+            if isinstance(item, list):  # a nested list = the children of the previous bookmark
+                walk(item)
+            else:
+                page = reader.get_destination_page_number(item) + 1  # pypdf is 0-based
+                bookmarks.append((page, item.title.strip()))
+
+    walk(reader.outline)
+
+    sections: dict[int, str] = {}
+    for page in range(1, len(reader.pages) + 1):
+        current = None
+        for start, title in bookmarks:
+            if start <= page:
+                current = title  # later bookmarks overwrite → the most specific heading wins
+        if current:
+            sections[page] = current
+    return sections
