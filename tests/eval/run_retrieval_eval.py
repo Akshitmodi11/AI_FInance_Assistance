@@ -80,9 +80,11 @@ def evaluate(retriever: Retriever, dataset: list[dict], mode: str, k: int) -> di
 
 def print_table(rows: list[dict], k: int) -> None:
     types = sorted({t for r in rows for t in r["by_type"]})
-    header = f"| Mode | Recall@{k} | MRR | No-answer acc. | " + " | ".join(
-        f"R@{k} {t}" for t in types
-    ) + " | p50 ms |"
+    header = (
+        f"| Mode | Recall@{k} | MRR | No-answer acc. | "
+        + " | ".join(f"R@{k} {t}" for t in types)
+        + " | p50 ms |"
+    )
     print(header)
     print("|" + "---|" * (header.count("|") - 1))
     for r in rows:

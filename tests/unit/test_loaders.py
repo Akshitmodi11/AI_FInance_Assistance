@@ -8,7 +8,7 @@ from src.rag.loaders import load_corpus, load_file
 from src.rag.loaders.docx import load_docx
 from src.rag.loaders.html import load_html
 from src.rag.loaders.markdown import load_markdown
-from src.rag.loaders.pdf import load_pdf, strip_repeated_lines
+from src.rag.loaders.pdf import clean_page_text, load_pdf, strip_repeated_lines
 from tests.conftest import make_docx, make_pdf
 
 MD = """---
@@ -81,6 +81,43 @@ def test_strip_repeated_lines_keeps_content_on_short_docs():
     assert all("Same line" in p for p in strip_repeated_lines(pages))
 
 
+def test_strip_repeated_lines_removes_irs_proof_metadata():
+    # Real IRS header lines (590-A): they change per page, so exact matching can't catch them.
+    pages = [
+        "Userid: CPM Schema: tipx Leadpct: 100% Pt. size: 10\n"
+        "AH XSL/XML Fileid: … cation-969/2025/a/xml/cycle08/source (Init. & Date) _______\n"
+        "IRA contributions are limited.",
+        "Page 10 of 62  Fileid: … tion-590-a/2025/a/xml/cycle08/source 10:50 - 15-Jan-2026\n"
+        "Spousal IRA limit applies.",
+    ]
+    cleaned = strip_repeated_lines(pages)  # only 2 pages: the patterns must work on their own
+    assert cleaned[0].strip() == "IRA contributions are limited."
+    assert cleaned[1].strip() == "Spousal IRA limit applies."
+
+
+def test_clean_page_text_unwraps_and_dehyphenates():
+    raw = (
+        "If you invest in an annuity under an individual retire-\n"
+        "ment annuity, no more than\n"
+        "$7,000   can be contributed.\n"
+        "\n"
+        "More than one IRA.  The limit\n"
+        "applies to the total."
+    )
+    assert clean_page_text(raw) == (
+        "If you invest in an annuity under an individual retirement annuity, no more than "
+        "$7,000 can be contributed.\n\n"
+        "More than one IRA. The limit applies to the total."
+    )
+
+
+def test_clean_page_text_keeps_real_hyphens():
+    # Not "letter-\nlowercase" → a real hyphenated term: keep the hyphen, drop the line break.
+    assert (
+        clean_page_text("File Form 1040-\nSR or Form\n8606.") == "File Form 1040-SR or Form 8606."
+    )
+
+
 def test_load_pdf_one_document_per_page(tmp_path: Path, manifest_meta):
     path = tmp_path / "p590a.pdf"
     path.write_bytes(
@@ -101,6 +138,35 @@ def test_load_pdf_one_document_per_page(tmp_path: Path, manifest_meta):
     assert docs[0].meta.file_type == "pdf"
     assert docs[0].meta.tax_year == 2025
     assert docs[1].meta.citation == "IRS Publication 590-A, p. 3"
+    assert docs[0].meta.section is None  # this PDF has no bookmarks
+
+
+def test_load_pdf_sections_from_bookmarks(tmp_path: Path, manifest_meta):
+    path = tmp_path / "p969.pdf"
+    path.write_bytes(
+        make_pdf(
+            [
+                ["Introduction text."],
+                ["HSA overview."],
+                ["Contribution limits are set yearly."],
+                ["More about limits."],
+            ],
+            bookmarks=[
+                ("Health Savings Accounts (HSAs)", 2, None),
+                ("Contributions to an HSA", 3, "Health Savings Accounts (HSAs)"),
+            ],
+        )
+    )
+    docs = load_pdf(path, manifest_meta | {"title": "IRS Publication 969"})
+
+    assert [d.meta.section for d in docs] == [
+        None,  # before the first bookmark
+        "Health Savings Accounts (HSAs)",
+        "Contributions to an HSA",
+        "Contributions to an HSA",  # no new bookmark on p. 4 → previous one still applies
+    ]
+    assert docs[2].meta.citation == "IRS Publication 969, p. 3"  # citation still uses the page
+    assert docs[2].doc_id == "p969:p3"
 
 
 def test_load_pdf_requires_manifest(tmp_path: Path):
@@ -175,6 +241,38 @@ def test_load_html_extracts_main_content(tmp_path: Path, manifest_meta):
         assert noise not in everything
     assert docs[2].doc_id == "stocks:s2"
     assert docs[0].meta.file_type == "html"
+
+
+HTML_H4 = """<html><body>
+<header>Investor.gov</header>
+<nav>Main navigation</nav>
+<h1>Mutual Funds</h1>
+<h2></h2>
+<h4>What are mutual funds?</h4>
+<p>A mutual fund pools money from many investors.</p>
+<p>Each share is part ownership of the portfolio.</p>
+<h4>Why do people buy mutual funds?</h4>
+<ul><li>Professional management</li><li><p>Diversification</p></li><li>Liquidity</li></ul>
+<footer>Privacy policy</footer>
+</body></html>"""
+
+
+def test_load_html_splits_on_h4_and_keeps_paragraphs(tmp_path: Path, manifest_meta):
+    # Mirrors Investor.gov "Mutual Funds": no <main>, empty <h2>, questions in <h4>.
+    path = tmp_path / "mutual-funds.html"
+    path.write_text(HTML_H4, encoding="utf-8")
+    docs = load_html(path, manifest_meta | {"title": "Mutual Funds", "category": "investing"})
+
+    assert [d.meta.section for d in docs] == [
+        "What are mutual funds?",
+        "Why do people buy mutual funds?",
+    ]
+    assert docs[0].text == (
+        "A mutual fund pools money from many investors.\n\n"
+        "Each share is part ownership of the portfolio."
+    )
+    assert docs[1].text == "Professional management\n\nDiversification\n\nLiquidity"
+    assert [d.doc_id for d in docs] == ["mutual-funds:s0", "mutual-funds:s1"]
 
 
 def test_load_html_requires_manifest(tmp_path: Path):
