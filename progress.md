@@ -5,7 +5,7 @@ _Last updated: 2026-10-19_
 ## Where we are
 **Week 1 — RAG layer.** Guided build: Claude scaffolds + reviews, I write the core logic.
 Goal: finish earlier than the 4-week plan, in small daily steps.
-Tests: **37 / 62 passing** (`pytest -q`). All 25 failures are in the stubs I haven't written yet.
+Tests: **48 / 62 passing** (`pytest -q`). All 14 failures are in the stubs I haven't written yet.
 
 ### My 9 RAG files
 | # | File | Functions to write | Status | Tests |
@@ -14,9 +14,9 @@ Tests: **37 / 62 passing** (`pytest -q`). All 25 failures are in the stubs I hav
 | 2 | `src/rag/sparse_index.py` | `tokenize`, `SparseIndex` | ✅ done | 10/10 |
 | 3 | `src/rag/dense_index.py` | `DenseIndex` | ✅ done | 3/3 |
 | 4 | `src/rag/chunking.py` | `chunk_document` (+ 3 helpers) | ✅ done | 6/6 |
-| 5 | `src/rag/loaders/pdf.py` | `load_pdf`, `strip_repeated_lines`, `clean_page_text`, `page_sections` | ⬜ **next** | 0/8 |
-| 6 | `src/rag/loaders/docx.py` | `load_docx` | ⬜ | 0/2 |
-| 7 | `src/rag/loaders/html.py` | `load_html` | ⬜ | 0/3 |
+| 5 | `src/rag/loaders/pdf.py` | `load_pdf`, `strip_repeated_lines`, `clean_page_text`, `page_sections` | ✅ done | 8/8 |
+| 6 | `src/rag/loaders/html.py` | `load_html` | ✅ done | 3/3 |
+| 7 | `src/rag/loaders/docx.py` | `load_docx` | ⬜ **next** | 0/2 |
 | 8 | `src/rag/retriever.py` | `Retriever.retrieve` | ⬜ | 0/11 |
 | 9 | `src/rag/ingest.py` | `build_index` | ⬜ | 0/1 |
 
@@ -26,19 +26,11 @@ Already passing (Claude's code): config 5, KB articles 2, Markdown loader + regi
 - `main` — only README. Merge into it only when CI is green.
 - `dev-branch` — fusion / sparse / dense done, pushed. CI fixed (`activate-environment: true`);
   lint ✅, tests ❌ (expected until the RAG layer is done).
-- `corpus-profiling` — **current branch**. Commit `6d065c0` pushed (2026-10-19).
-  **Not yet committed:** `src/rag/chunking.py` (done), `progress.md` updates. Commit 6d065c0 contains:
-  - 5 documents in `data/kb/documents/` (p590a, p969 PDFs; Investor.gov stocks / bonds / mutual-funds HTML)
-  - `data/kb/manifest.yaml` entries for all 5 (+ parked p550 note)
-  - `notebooks/profile_corpus.py`, `docs/chunking_strategy.md`, this `progress.md`
-  - updated specs: `loaders/pdf.py`, `loaders/html.py`, `chunking.py`; 5 new tests; bookmark support in `tests/conftest.py`
-- Commit the chunker:
-  ```
-  git status
-  git add src/rag/chunking.py progress.md
-  git commit -m "Implement recursive chunker with overlap"
-  git push
-  ```
+- `corpus-profiling` — **current branch**, all pushed:
+  - `6d065c0` corpus (5 docs + manifest), profiler, chunking strategy doc, loader specs + 5 tests
+  - `3ff8a2a` chunking.py
+  - `b913de5` pdf.py
+  - **Not yet committed:** `src/rag/loaders/html.py` (done) + `progress.md` → `git add src/rag/loaders/html.py progress.md`, commit, push
 - Cleanup: delete the typo branch → `git branch -d dev-branc`
 
 ## Corpus (data/kb)
@@ -80,27 +72,26 @@ OVERLAP   (chunking)  → 120 chars, snapped to a word boundary
 CONTEXT   (models.py) → embedding_text = "Title — Section\n" + text
 ```
 Why not the others: fixed-size = baseline only; token-based = still a blind cut; semantic / parent-child =
-Week-4 stretch; LLM chunking = too costly. Verified with a reference implementation on the real corpus:
-p590a → 388 chunks / 30 sections, p969 → 154 / 16, 0 junk chunks, 0 broken words.
+Week-4 stretch; LLM chunking = too costly.
+**Verified with MY pdf.py + chunking.py on the real IRS PDFs:** p590a → 62 pages / 390 chunks / 30 sections,
+p969 → 22 / 154 / 16; 0 junk chunks; max chunk 920 (= 800 + 120 overlap).
 Benchmark later: fixed-size baseline vs ours vs no-headers vs 400 vs 1200 (recall@5, MRR) → README.
 
 ## Next session — start here
-1. Commit + push the chunker (commands above) if not done.
-2. Write `src/rag/loaders/pdf.py`, easiest first — ask Claude for each function's skeleton:
-   | Order | Function | Tests | Core idea |
-   |---|---|---|---|
-   | 1 | `clean_page_text` | 2 | 2 `re.sub` for hyphens → split paragraphs → collapse whitespace |
-   | 2 | `strip_repeated_lines` | 3 | 1 compiled noise regex + `Counter` of lines per page |
-   | 3 | `page_sections` | 1 | flatten `reader.outline` recursively → last bookmark on/before each page |
-   | 4 | `load_pdf` | 2 | glue: extract → strip → clean → sections → `Document`s |
-   Run one at a time: `pytest tests/unit/test_loaders.py -k clean_page -v`
-3. Then `html.py` (3 tests) → `docx.py` (2).
-4. Then `retriever.py` → `ingest.py` → run the retrieval eval → merge into `dev-branch`.
+1. Commit + push `progress.md` if not done.
+2. `src/rag/loaders/docx.py` (2 tests) — Claude puts a BLANK skeleton in the file; split on `Heading*`
+   paragraph styles. Answer the blanks **in chat** (`1: … 2: …`) — typing in the editor hasn't been saving.
+3. (html.py ✅ done)
+4. Then `retriever.py` (11) → `ingest.py` (1) → run the retrieval eval → merge into `dev-branch`.
 
 ## Done log
 - 2026-10-18: fusion, sparse_index, dense_index; CI fix; corpus downloaded + profiled.
 - 2026-10-19: chunking strategy decided (`docs/chunking_strategy.md`); p550 parked; loader specs + 5 tests;
   **chunking.py done** (my 3 helpers: `_split_into_pieces`, `_pack`, `_add_overlap` — all blanks right first try).
+  **pdf.py done** — noise regex, de-hyphenation, bookmark sections; 0 junk chunks on real IRS PDFs.
+  (Editor issue: my typed answers didn't reach the saved file 3×; Claude filled the blanks from the skeleton.)
+  **html.py done** — h2/h3/h4 sections, noise + cookie/banner removal; real pages → 6 / 6 / 13 sections,
+  12 / 11 / 18 chunks, no nav/footer leaks. (Blanks filled by Claude again — same editor issue.)
 
 ## My TODOs outside code
 - Sign up: Alpha Vantage, Tavily → put keys in `.env` (never commit it).
@@ -116,10 +107,16 @@ Benchmark later: fixed-size baseline vs ours vs no-headers vs 400 vs 1200 (recal
 - Chunker details: `+ 2` in packing = the `"\n\n"` separator; overlap snaps to a word start (half-words are
   noise for BM25 and embeddings); max chunk = `chunk_size + overlap` (800 + 120 = 920) because overlap is
   prepended after packing.
+- PDF loader: `.search` not `.match` (IRS page 1 has `AH XSL/XML Fileid:` mid-line — found on real data);
+  repeated-line rule only with ≥ 3 pages (with 2 pages everything "repeats"); `retire-\nment` → join, but
+  `1040-\nSR` → keep the hyphen; section = **last** bookmark starting on/before the page (most specific heading);
+  blank lines kept through stripping because they are paragraph breaks for the chunker.
 
 ## Habit reminders from mistakes so far
 - Paste code *into* the file — twice now the whole file got replaced (docstrings / imports / functions lost).
 - Save before asking for a review (turn on File → Auto Save).
+- If edits don't reach the file: close the tab (Don't Save), reopen from Explorer; check for read-only,
+  preview mode (italic tab title), or the file being open in a second VS Code window.
 - Missing imports (`faiss`, `BM25Okapi`, `re`) — run `ruff check` before saying "done"; it flags them as F821.
 
 ## Habits
