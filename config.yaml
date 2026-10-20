@@ -18,8 +18,8 @@ llm:
 
 rag:
   articles_dir: data/kb/articles      # .md files (metadata in front-matter)
-  documents_dir: data/kb/documents    # .pdf / .docx / .html files
-  manifest_path: data/kb/manifest.yaml  # metadata for documents_dir
+  sources_dir: data/kb/sources        # downloaded .pdf / .docx / .html files
+  manifest_path: data/kb/manifest.yaml  # metadata for sources_dir
   index_dir: data/index
   embedding_model: sentence-transformers/all-MiniLM-L6-v2
   chunk_size: 800             # characters

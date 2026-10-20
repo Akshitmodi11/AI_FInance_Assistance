@@ -37,7 +37,7 @@ def load_manifest(path: Path) -> dict[str, dict]:
     if not path.exists():
         return {}
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    return data.get("documents", {})
+    return data.get("sources", {})
 
 
 def load_file(path: Path, meta: dict | None = None) -> list[Document]:
@@ -48,17 +48,17 @@ def load_file(path: Path, meta: dict | None = None) -> list[Document]:
 
 
 def load_corpus(settings: Settings) -> list[Document]:
-    """Load every supported file from the articles and documents folders."""
+    """Load every supported file from the articles and sources folders."""
     articles_dir = settings.resolve(settings.rag.articles_dir)
-    documents_dir = settings.resolve(settings.rag.documents_dir)
+    sources_dir = settings.resolve(settings.rag.sources_dir)
     manifest = load_manifest(settings.resolve(settings.rag.manifest_path))
 
     docs: list[Document] = []
     for path in sorted(articles_dir.glob("*.md")):
         docs.extend(load_file(path))
 
-    if documents_dir.exists():
-        for path in sorted(p for p in documents_dir.iterdir() if p.is_file()):
+    if sources_dir.exists():
+        for path in sorted(p for p in sources_dir.iterdir() if p.is_file()):
             if path.suffix.lower() not in LOADERS:
                 log.warning("Skipping unsupported file %s", path.name)
                 continue

@@ -1,4 +1,4 @@
-"""Build all RAG indexes from data/kb — TODO(you).
+"""Build all RAG indexes from data/kb.
 
 Usage:  python -m src.rag.ingest
 
@@ -11,10 +11,16 @@ from __future__ import annotations
 
 import logging
 import time
+from collections import Counter
 from dataclasses import dataclass
 
 from src.core.config import Settings, get_settings
+from src.rag.chunking import chunk_documents
+from src.rag.dense_index import DenseIndex
 from src.rag.embeddings import Embedder, SentenceTransformerEmbedder
+from src.rag.loaders import load_corpus
+from src.rag.sparse_index import SparseIndex
+from src.rag.store import ChunkStore
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +47,28 @@ def build_index(settings: Settings, embedder: Embedder) -> IngestStats:
        into docs/benchmarks.md.
     Raise ``ValueError`` if the corpus produces zero chunks.
     """
-    raise NotImplementedError("TODO(you): implement build_index")
+    start = time.perf_counter()
+    rag = settings.rag
+
+    docs = load_corpus(settings)
+    chunks = chunk_documents(docs, rag.chunk_size, rag.chunk_overlap)
+    if not chunks:
+        raise ValueError("The corpus produced no chunks — add files to data/kb/")
+
+    texts = [c.embedding_text for c in chunks]
+    index_dir = settings.resolve(rag.index_dir)
+    # The three files share row numbers: row i = chunks[i] = vector i = token list i.
+    ChunkStore(chunks).save(index_dir)
+    DenseIndex.build(embedder.embed(texts)).save(index_dir)
+    SparseIndex.build(texts).save(index_dir)
+
+    return IngestStats(
+        documents=len(docs),
+        chunks=len(chunks),
+        by_file_type=dict(Counter(c.meta.file_type for c in chunks)),
+        by_category=dict(Counter(c.meta.category for c in chunks)),
+        seconds=time.perf_counter() - start,
+    )
 
 
 def main() -> None:

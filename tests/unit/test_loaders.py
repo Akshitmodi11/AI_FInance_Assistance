@@ -296,17 +296,17 @@ def _settings_for(tmp_path: Path) -> Settings:
     return Settings(
         rag={
             "articles_dir": tmp_path / "articles",
-            "documents_dir": tmp_path / "documents",
+            "sources_dir": tmp_path / "sources",
             "manifest_path": tmp_path / "manifest.yaml",
         }
     )
 
 
-def test_load_corpus_requires_manifest_entry_for_documents(tmp_path: Path):
+def test_load_corpus_requires_manifest_entry_for_sources(tmp_path: Path):
     (tmp_path / "articles").mkdir()
     (tmp_path / "articles" / "ci.md").write_text(MD, encoding="utf-8")
-    (tmp_path / "documents").mkdir()
-    (tmp_path / "documents" / "orphan.html").write_text("<p>x</p>", encoding="utf-8")
+    (tmp_path / "sources").mkdir()
+    (tmp_path / "sources" / "orphan.html").write_text("<p>x</p>", encoding="utf-8")
 
     with pytest.raises(ValueError, match="orphan.html"):
         load_corpus(_settings_for(tmp_path))
@@ -315,7 +315,7 @@ def test_load_corpus_requires_manifest_entry_for_documents(tmp_path: Path):
 def test_load_corpus_markdown_only(tmp_path: Path):
     (tmp_path / "articles").mkdir()
     (tmp_path / "articles" / "ci.md").write_text(MD, encoding="utf-8")
-    (tmp_path / "manifest.yaml").write_text(yaml.safe_dump({"documents": {}}), encoding="utf-8")
+    (tmp_path / "manifest.yaml").write_text(yaml.safe_dump({"sources": {}}), encoding="utf-8")
 
     docs = load_corpus(_settings_for(tmp_path))
     assert len(docs) == 3
