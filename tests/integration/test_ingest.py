@@ -17,17 +17,17 @@ pytestmark = pytest.mark.integration
 def test_ingest_then_retrieve(tmp_path: Path, fake_embedder, manifest_meta):
     (tmp_path / "articles").mkdir()
     (tmp_path / "articles" / "compound-interest.md").write_text(MD, encoding="utf-8")
-    (tmp_path / "documents").mkdir()
-    (tmp_path / "documents" / "p590a.pdf").write_bytes(
+    (tmp_path / "sources").mkdir()
+    (tmp_path / "sources" / "p590a.pdf").write_bytes(
         make_pdf([["Roth IRA contributions are not deductible."], ["Excess contributions."]])
     )
     (tmp_path / "manifest.yaml").write_text(
-        yaml.safe_dump({"documents": {"p590a.pdf": manifest_meta}}), encoding="utf-8"
+        yaml.safe_dump({"sources": {"p590a.pdf": manifest_meta}}), encoding="utf-8"
     )
     settings = Settings(
         rag={
             "articles_dir": tmp_path / "articles",
-            "documents_dir": tmp_path / "documents",
+            "sources_dir": tmp_path / "sources",
             "manifest_path": tmp_path / "manifest.yaml",
             "index_dir": tmp_path / "index",
             "min_score": 0.2,

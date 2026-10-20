@@ -1,8 +1,8 @@
-# Metadata for every file in data/kb/documents/ (PDF, Word, HTML have no front-matter).
+# Metadata for every file in data/kb/sources/ (PDF, Word, HTML have no front-matter).
 # Key = exact file name. Required: title, url, source, category. Optional: tax_year, level.
-# Ingestion fails loudly if a file in documents/ is missing here — no uncitable sources.
+# Ingestion fails loudly if a file in sources/ is missing here — no uncitable sources.
 
-documents:
+sources:
   p590a.pdf:
     title: IRS Publication 590-A — Contributions to IRAs
     url: https://www.irs.gov/pub/irs-pdf/p590a.pdf

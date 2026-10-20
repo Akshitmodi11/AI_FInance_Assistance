@@ -50,7 +50,7 @@ class LLMConfig(BaseModel):
 
 class RAGConfig(BaseModel):
     articles_dir: Path = Path("data/kb/articles")
-    documents_dir: Path = Path("data/kb/documents")
+    sources_dir: Path = Path("data/kb/sources")
     manifest_path: Path = Path("data/kb/manifest.yaml")
     index_dir: Path = Path("data/index")
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"

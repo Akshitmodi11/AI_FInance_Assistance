@@ -1,4 +1,4 @@
-"""Word (.docx) loader — TODO(you).
+"""Word (.docx) loader.
 
 Concepts this teaches:
 * A .docx is a zip of XML. ``python-docx`` exposes it as a list of paragraphs, each with a
@@ -15,7 +15,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.rag.models import Document
+import docx
+
+from src.rag.models import Document, SourceMeta
 
 
 def load_docx(path: Path, meta: dict | None = None) -> list[Document]:
@@ -30,4 +32,28 @@ def load_docx(path: Path, meta: dict | None = None) -> list[Document]:
     * Join paragraph texts with ``"\\n"``; skip empty paragraphs and empty sections.
     * Bonus: include table cell text (``document.tables``) — finance guides love tables.
     """
-    raise NotImplementedError("TODO(you): implement load_docx")
+    if meta is None:
+        raise ValueError(f"{path.name}: a Word file needs a manifest.yaml entry to be citable")
+
+    base = SourceMeta(**meta, file_type="docx")
+    sections: list[tuple[str, list[str]]] = [(base.title, [])]
+
+    for para in docx.Document(path).paragraphs:
+        text = para.text.strip()
+        if para.style.name.startswith("Heading"):
+            sections.append((text, []))
+        elif text:
+            sections[-1][1].append(text)
+
+    docs: list[Document] = []
+    for name, lines in sections:
+        if not lines:
+            continue  # e.g. no text before the first heading
+        docs.append(
+            Document(
+                doc_id=f"{path.stem}:s{len(docs)}",
+                text="\n".join(lines),
+                meta=base.model_copy(update={"section": name}),
+            )
+        )
+    return docs

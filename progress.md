@@ -5,7 +5,7 @@ _Last updated: 2026-10-19_
 ## Where we are
 **Week 1 — RAG layer.** Guided build: Claude scaffolds + reviews, I write the core logic.
 Goal: finish earlier than the 4-week plan, in small daily steps.
-Tests: **48 / 62 passing** (`pytest -q`). All 14 failures are in the stubs I haven't written yet.
+Tests: **50 / 62 passing** (`pytest -q`). All 12 failures are in the stubs I haven't written yet.
 
 ### My 9 RAG files
 | # | File | Functions to write | Status | Tests |
@@ -16,22 +16,21 @@ Tests: **48 / 62 passing** (`pytest -q`). All 14 failures are in the stubs I hav
 | 4 | `src/rag/chunking.py` | `chunk_document` (+ 3 helpers) | ✅ done | 6/6 |
 | 5 | `src/rag/loaders/pdf.py` | `load_pdf`, `strip_repeated_lines`, `clean_page_text`, `page_sections` | ✅ done | 8/8 |
 | 6 | `src/rag/loaders/html.py` | `load_html` | ✅ done | 3/3 |
-| 7 | `src/rag/loaders/docx.py` | `load_docx` | ⬜ **next** | 0/2 |
-| 8 | `src/rag/retriever.py` | `Retriever.retrieve` | ⬜ | 0/11 |
+| 7 | `src/rag/loaders/docx.py` | `load_docx` | ✅ done | 2/2 |
+| 8 | `src/rag/retriever.py` | `Retriever.retrieve` | ⬜ **next** | 0/11 |
 | 9 | `src/rag/ingest.py` | `build_index` | ⬜ | 0/1 |
 
 Already passing (Claude's code): config 5, KB articles 2, Markdown loader + registry 5, eval metrics 3.
 
 ## Git
 - `main` — only README. Merge into it only when CI is green.
-- `dev-branch` — fusion / sparse / dense done, pushed. CI fixed (`activate-environment: true`);
-  lint ✅, tests ❌ (expected until the RAG layer is done).
-- `corpus-profiling` — **current branch**, all pushed:
+- `dev-branch` — **current working branch**, pushed at `b7f1b7c`. CI fixed (`activate-environment: true`);
+  lint ✅, tests ❌ (12 expected failures: retriever / ingest not written yet).
+- `corpus-profiling` — **merged into `dev-branch` (fast-forward) and deleted** on 2026-10-19. Its commits:
   - `6d065c0` corpus (5 docs + manifest), profiler, chunking strategy doc, loader specs + 5 tests
-  - `3ff8a2a` chunking.py
-  - `b913de5` pdf.py
-  - **Not yet committed:** `src/rag/loaders/html.py` (done) + `progress.md` → `git add src/rag/loaders/html.py progress.md`, commit, push
-- Cleanup: delete the typo branch → `git branch -d dev-branc`
+  - `3ff8a2a` chunking.py · `b913de5` pdf.py · `b7f1b7c` html.py
+- Workflow from now on: work on `dev-branch` (or a short feature branch → merge back) → `main` only when CI is green.
+- Cleanup still open: delete the local typo branch → `git branch -d dev-branc`
 
 ## Corpus (data/kb)
 | File | Type | Size | Category |
@@ -44,7 +43,12 @@ Already passing (Claude's code): config 5, KB articles 2, Markdown loader + regi
 | `articles/diversification-basics.md` | my article | 5 sections | diversification |
 | ~~`p550.pdf`~~ | parked — 117 pages = 62% of corpus | | |
 
-`manifest.yaml` = metadata (title, url, source, category, tax_year) for every non-Markdown file.
+Folder layout (renamed 2026-10-19: `data/kb/documents/` → `data/kb/sources/`, config key `rag.sources_dir`):
+- `data/kb/articles/` — my Markdown articles (metadata in front-matter) · `data/kb/sources/` — downloaded PDF/HTML/DOCX
+  → both are **read by Finnie** (indexed + cited).
+- `docs/` — project documentation for humans (design, chunking strategy, benchmarks) → **never indexed**.
+
+`manifest.yaml` (top-level key `sources:`) = metadata (title, url, source, category, tax_year) for every file in `sources/`.
 Ingestion fails on any file without an entry → every answer is citable.
 
 ## Corpus profiling (2026-10-18) — `python notebooks/profile_corpus.py .`
@@ -79,10 +83,11 @@ Benchmark later: fixed-size baseline vs ours vs no-headers vs 400 vs 1200 (recal
 
 ## Next session — start here
 1. Commit + push `progress.md` if not done.
-2. `src/rag/loaders/docx.py` (2 tests) — Claude puts a BLANK skeleton in the file; split on `Heading*`
-   paragraph styles. Answer the blanks **in chat** (`1: … 2: …`) — typing in the editor hasn't been saving.
-3. (html.py ✅ done)
-4. Then `retriever.py` (11) → `ingest.py` (1) → run the retrieval eval → merge into `dev-branch`.
+2. `src/rag/retriever.py` (11 tests) — the core: dense / sparse / hybrid (RRF) modes, category filter,
+   `dense_score` on every result, and the "I don't know" gate (top dense cosine < `min_score`).
+   Claude puts a BLANK skeleton in the file; answer the blanks in chat.
+3. (all 4 loaders ✅ done)
+4. Then `ingest.py` (1) → build the real index → run the retrieval eval (dense vs sparse vs hybrid).
 
 ## Done log
 - 2026-10-18: fusion, sparse_index, dense_index; CI fix; corpus downloaded + profiled.
@@ -92,6 +97,7 @@ Benchmark later: fixed-size baseline vs ours vs no-headers vs 400 vs 1200 (recal
   (Editor issue: my typed answers didn't reach the saved file 3×; Claude filled the blanks from the skeleton.)
   **html.py done** — h2/h3/h4 sections, noise + cookie/banner removal; real pages → 6 / 6 / 13 sections,
   12 / 11 / 18 chunks, no nav/footer leaks. (Blanks filled by Claude again — same editor issue.)
+  Renamed `data/kb/documents/` → `data/kb/sources/`. **docx.py done** — all 4 loaders finished.
 
 ## My TODOs outside code
 - Sign up: Alpha Vantage, Tavily → put keys in `.env` (never commit it).

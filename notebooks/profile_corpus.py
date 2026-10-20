@@ -52,7 +52,7 @@ for p in sorted((ROOT / "data/kb/articles").glob("*.md")):
 
 print("\n--- PDF (raw pages, before header stripping) ---")
 pdf_pages = {}
-for p in sorted((ROOT / "data/kb/documents").glob("*.pdf")):
+for p in sorted((ROOT / "data/kb/sources").glob("*.pdf")):
     pages = [pg.extract_text() or "" for pg in PdfReader(p).pages]
     pdf_pages[p.name] = pages
     report(p.name, pages, "page")
@@ -68,7 +68,7 @@ for name, pages in pdf_pages.items():
     print(f"    most common first line: {first_lines.most_common(1)}")
 
 print("\n--- HTML (naive: body minus script/style/nav/header/footer, split on <h2>) ---")
-for p in sorted((ROOT / "data/kb/documents").glob("*.html")):
+for p in sorted((ROOT / "data/kb/sources").glob("*.html")):
     soup = BeautifulSoup(p.read_text(encoding="utf-8"), "html.parser")
     for t in soup(["script", "style", "noscript", "nav", "header", "footer", "aside", "form"]):
         t.decompose()
