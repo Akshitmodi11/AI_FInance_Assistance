@@ -1,4 +1,4 @@
-"""Chunking — TODO(you).
+"""Chunking — TODO(you). Strategy and alternatives: docs/chunking_strategy.md.
 
 Concepts this teaches:
 * Loaders already split on *structure* (sections, pages). Chunking enforces a *size* limit,
@@ -22,8 +22,11 @@ def chunk_document(doc: Document, chunk_size: int, overlap: int) -> list[Chunk]:
     1. If ``len(doc.text) <= chunk_size`` → a single chunk with the whole text.
     2. Otherwise split into paragraphs on blank lines (``"\\n\\n"``) and pack them greedily:
        keep adding paragraphs to the current chunk while it fits in ``chunk_size``.
-    3. A single paragraph longer than ``chunk_size`` is split further — on sentence ends
-       (". ") if possible, otherwise hard-cut at ``chunk_size``.
+    3. A single paragraph longer than ``chunk_size`` is split further — on sentence ends if
+       possible, otherwise hard-cut at ``chunk_size``. Sentence end = ``.``/``!``/``?`` +
+       whitespace + a capital, digit, quote, ``(`` or ``$``:
+       ``re.split(r"(?<=[.!?])\\s+(?=[A-Z0-9\\"($])", para)`` — so "$7,000.50" and "e.g. a"
+       don't split. This is the *main* path for PDF pages, which have no blank lines.
     4. Each new chunk starts with the last ``overlap`` characters of the previous chunk.
        (Bonus: snap the overlap start forward to a word boundary so it doesn't begin
        mid-word.) The total may then slightly exceed ``chunk_size`` — that's fine, but it

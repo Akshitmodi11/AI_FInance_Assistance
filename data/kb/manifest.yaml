@@ -2,20 +2,42 @@
 # Key = exact file name. Required: title, url, source, category. Optional: tax_year, level.
 # Ingestion fails loudly if a file in documents/ is missing here — no uncitable sources.
 
-documents: {}
+documents:
+  p590a.pdf:
+    title: IRS Publication 590-A — Contributions to IRAs
+    url: https://www.irs.gov/pub/irs-pdf/p590a.pdf
+    source: IRS
+    category: retirement_tax
+    tax_year: 2025
 
-# Example entries — uncomment after downloading the files into data/kb/documents/:
-#
-#  p590a.pdf:
-#    title: IRS Publication 590-A — Contributions to IRAs
-#    url: https://www.irs.gov/pub/irs-pdf/p590a.pdf
-#    source: IRS
-#    category: retirement_tax
-#    tax_year: 2025
-#
-#  investor-gov-stocks.html:
-#    title: Stocks (Investor.gov)
-#    url: https://www.investor.gov/introduction-investing/investing-basics/investment-products/stocks
-#    source: SEC Investor.gov
-#    category: investing
-#    level: beginner
+  p969.pdf:
+    title: IRS Publication 969 — Health Savings Accounts and Other Tax-Favored Health Plans
+    url: https://www.irs.gov/pub/irs-pdf/p969.pdf
+    source: IRS
+    category: retirement_tax
+    tax_year: 2025
+
+  investor-gov-stocks.html:
+    title: Stocks (Investor.gov)
+    url: https://www.investor.gov/introduction-investing/investing-basics/investment-products/stocks
+    source: SEC Investor.gov
+    category: investing
+    level: beginner
+
+  investor-gov-bonds.html:
+    title: Bonds (Investor.gov)
+    url: https://www.investor.gov/introduction-investing/investing-basics/investment-products/bonds-or-fixed-income-products/bonds
+    source: SEC Investor.gov
+    category: investing
+    level: beginner
+
+  investor-gov-mutual-funds-etfs.html:
+    title: Mutual Funds and ETFs (Investor.gov)
+    url: https://www.investor.gov/introduction-investing/investing-basics/investment-products/mutual-funds-and-exchange-traded-1
+    source: SEC Investor.gov
+    category: investing
+    level: beginner
+
+# Parked (2026-10-19): p550.pdf — IRS Publication 550, Investment Income and Expenses
+# (https://www.irs.gov/pub/irs-pdf/p550.pdf). 117 pages = 62% of the corpus on its own; it would
+# drown beginner content. Re-add once there are ~50 Markdown articles to balance it.

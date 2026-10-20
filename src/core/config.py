@@ -43,9 +43,7 @@ class ModelPair(BaseModel):
 class LLMConfig(BaseModel):
     provider: Literal["openai", "gemini"] = "openai"
     openai: ModelPair = ModelPair(router_model="gpt-4o-mini", answer_model="gpt-4o")
-    gemini: ModelPair = ModelPair(
-        router_model="gemini-2.0-flash", answer_model="gemini-2.0-flash"
-    )
+    gemini: ModelPair = ModelPair(router_model="gemini-2.0-flash", answer_model="gemini-2.0-flash")
     temperature: float = 0.2
     timeout_s: int = 30
 

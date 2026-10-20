@@ -58,8 +58,33 @@ def make_chunk(text: str, chunk_id: str, **meta) -> Chunk:
     return Chunk(chunk_id=chunk_id, doc_id=doc_id, text=text, meta=make_meta(**meta))
 
 
-def make_pdf(pages: list[list[str]]) -> bytes:
-    """Build a minimal valid PDF with one text line per entry. No PDF library needed."""
+def make_pdf(
+    pages: list[list[str]], bookmarks: list[tuple[str, int, str | None]] | None = None
+) -> bytes:
+    """Build a minimal valid PDF with one text line per entry.
+
+    ``bookmarks`` = ``[(title, 1-based page, parent title or None)]``, in document order;
+    a parent must be listed before its children.
+    """
+    data = _make_pdf_bytes(pages)
+    if not bookmarks:
+        return data
+
+    import io
+
+    from pypdf import PdfReader, PdfWriter
+
+    writer = PdfWriter(clone_from=PdfReader(io.BytesIO(data)))
+    items = {}
+    for title, page, parent in bookmarks:
+        items[title] = writer.add_outline_item(title, page - 1, parent=items.get(parent))
+    buf = io.BytesIO()
+    writer.write(buf)
+    return buf.getvalue()
+
+
+def _make_pdf_bytes(pages: list[list[str]]) -> bytes:
+    """Hand-written PDF bytes — no PDF library needed."""
     n = len(pages)
     page_ids = [4 + 2 * i for i in range(n)]
     objs: list[bytes] = [
