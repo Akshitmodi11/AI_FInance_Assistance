@@ -5,7 +5,7 @@ _Last updated: 2026-10-19_
 ## Where we are
 **Week 1 — RAG layer.** Guided build: Claude scaffolds + reviews, I write the core logic.
 Goal: finish earlier than the 4-week plan, in small daily steps.
-Tests: **50 / 62 passing** (`pytest -q`). All 12 failures are in the stubs I haven't written yet.
+Tests: **62 / 62 passing** ✅ (`pytest -q`). **RAG layer complete (2026-10-19).**
 
 ### My 9 RAG files
 | # | File | Functions to write | Status | Tests |
@@ -17,15 +17,15 @@ Tests: **50 / 62 passing** (`pytest -q`). All 12 failures are in the stubs I hav
 | 5 | `src/rag/loaders/pdf.py` | `load_pdf`, `strip_repeated_lines`, `clean_page_text`, `page_sections` | ✅ done | 8/8 |
 | 6 | `src/rag/loaders/html.py` | `load_html` | ✅ done | 3/3 |
 | 7 | `src/rag/loaders/docx.py` | `load_docx` | ✅ done | 2/2 |
-| 8 | `src/rag/retriever.py` | `Retriever.retrieve` | ⬜ **next** | 0/11 |
-| 9 | `src/rag/ingest.py` | `build_index` | ⬜ | 0/1 |
+| 8 | `src/rag/retriever.py` | `Retriever.retrieve` | ✅ done | 11/11 |
+| 9 | `src/rag/ingest.py` | `build_index` | ✅ done | 1/1 |
 
 Already passing (Claude's code): config 5, KB articles 2, Markdown loader + registry 5, eval metrics 3.
 
 ## Git
 - `main` — only README. Merge into it only when CI is green.
 - `dev-branch` — **current working branch**, pushed at `b7f1b7c`. CI fixed (`activate-environment: true`);
-  lint ✅, tests ❌ (12 expected failures: retriever / ingest not written yet).
+  lint ✅, tests ❌ (all 62 tests should pass once pushed).
 - `corpus-profiling` — **merged into `dev-branch` (fast-forward) and deleted** on 2026-10-19. Its commits:
   - `6d065c0` corpus (5 docs + manifest), profiler, chunking strategy doc, loader specs + 5 tests
   - `3ff8a2a` chunking.py · `b913de5` pdf.py · `b7f1b7c` html.py
@@ -81,13 +81,24 @@ Week-4 stretch; LLM chunking = too costly.
 p969 → 22 / 154 / 16; 0 junk chunks; max chunk 920 (= 800 + 120 overlap).
 Benchmark later: fixed-size baseline vs ours vs no-headers vs 400 vs 1200 (recall@5, MRR) → README.
 
+## First live retrieval (2026-10-19, real index, `k=3`)
+| Query | dense | sparse | hybrid | #1 citation (hybrid) |
+|---|---|---|---|---|
+| How much can I contribute to an IRA in 2025? | 0.73 ✅ | 0.72 ✅ | 0.72 ✅ | IRS Pub 590-A, p. 5 |
+| What is diversification? | 0.80 ✅ | 0.80 ✅ | 0.80 ✅ | What Is Diversification? (my article) |
+| Form 8606 | 0.52 ✅ | 0.52 ✅ | 0.52 ✅ | IRS Pub 590-A, p. 16 |
+| best pizza recipe in Naples | 0.17 ❌ | 0.00 ❌ | 0.17 ❌ | → "I don't know" gate works |
+(numbers = top dense cosine; ✅ = confident ≥ 0.35)
+
+Rebuild the index any time: `python -m src.rag.ingest` (set `HF_HUB_OFFLINE=1` after the first run to skip HF checks).
+
 ## Next session — start here
-1. Commit + push `progress.md` if not done.
-2. `src/rag/retriever.py` (11 tests) — the core: dense / sparse / hybrid (RRF) modes, category filter,
-   `dense_score` on every result, and the "I don't know" gate (top dense cosine < `min_score`).
-   Claude puts a BLANK skeleton in the file; answer the blanks in chat.
-3. (all 4 loaders ✅ done)
-4. Then `ingest.py` (1) → build the real index → run the retrieval eval (dense vs sparse vs hybrid).
+1. Commit + push everything on `dev-branch`; check CI is fully green (62/62) → then merge `dev-branch` into `main`.
+2. **Corpus balance** — chunks are 92% PDF / 7% HTML / 1% Markdown. Write ~10 Markdown articles (2 per category:
+   basics, investing, diversification, retirement_tax, goals_budgeting, markets), re-run ingest.
+3. **Eval set** — label ~40 questions in `tests/eval/retrieval_set.jsonl` (exact_term / paraphrase / concept /
+   out_of_scope), then `python -m tests.eval.run_retrieval_eval --show-misses` → dense vs sparse vs hybrid table → README.
+4. Then Week 2: LangGraph + the six agents (Claude scaffolds `core/schemas.py` + `core/llm.py` first).
 
 ## Done log
 - 2026-10-18: fusion, sparse_index, dense_index; CI fix; corpus downloaded + profiled.
@@ -98,6 +109,10 @@ Benchmark later: fixed-size baseline vs ours vs no-headers vs 400 vs 1200 (recal
   **html.py done** — h2/h3/h4 sections, noise + cookie/banner removal; real pages → 6 / 6 / 13 sections,
   12 / 11 / 18 chunks, no nav/footer leaks. (Blanks filled by Claude again — same editor issue.)
   Renamed `data/kb/documents/` → `data/kb/sources/`. **docx.py done** — all 4 loaders finished.
+  **retriever.py done** — dense / sparse / hybrid, category filter before top-k, dense cosine for BM25-only
+  hits via `index.reconstruct` (no re-embedding), confidence gate on the best dense cosine.
+  **ingest.py done → real index built:** 114 docs → 590 chunks (pdf 544 · html 41 · md 5) in 68 s
+  (first run incl. model download; embedding itself ~5 s). **62 / 62 tests — RAG layer complete.**
 
 ## My TODOs outside code
 - Sign up: Alpha Vantage, Tavily → put keys in `.env` (never commit it).
@@ -110,6 +125,9 @@ Benchmark later: fixed-size baseline vs ours vs no-headers vs 400 vs 1200 (recal
 - IndexFlatIP: exact search, milliseconds at this size; HNSW/IVF only pay off at ~1M vectors.
 - Profiled the corpus before chunking; every finding became a loader rule or a test.
 - Manifest = data-provenance registry; unregistered files can't be ingested.
+- Retriever: confidence gate uses dense cosine, not RRF (RRF = position only; nonsense still gets a "#1");
+  category filter BEFORE top-k (fetch candidate_k=20); BM25-only hits get cosine from `index.reconstruct`.
+- Chunks live in `data/index/` (chunks.json, dense.faiss, sparse_tokens.json) — derived, gitignored, rebuildable.
 - Chunker details: `+ 2` in packing = the `"\n\n"` separator; overlap snaps to a word start (half-words are
   noise for BM25 and embeddings); max chunk = `chunk_size + overlap` (800 + 120 = 920) because overlap is
   prepended after packing.
