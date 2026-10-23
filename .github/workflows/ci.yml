@@ -15,11 +15,32 @@ jobs:
           python-version: "3.12"
           activate-environment: true  # creates .venv and puts it on PATH for later steps
       - name: Install dependencies
-        run: uv pip install -r requirements.txt
-      - name: Lint
-        run: ruff check .
+        # CPU-only PyTorch: same results for our embedding model, ~2 GB smaller than the CUDA build
+        run: >
+          uv pip install -r requirements.txt
+          --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
+      - name: Lint and format
+        run: |
+          ruff check .
+          ruff format --check .
       - name: Check no secrets are committed
         run: |
           if git ls-files | grep -E '(^|/)\.env$'; then echo ".env is committed!"; exit 1; fi
-      - name: Test
-        run: pytest --cov=src --cov-report=term-missing
+      - name: Test (offline — fake LLMs, mock providers, in-memory Qdrant) with coverage gate
+        run: pytest --cov=src --cov-report=term-missing --cov-fail-under=80
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image (installs deps, builds the RAG index, downloads the model)
+        run: docker build -t finnie:ci .
+      - name: Smoke-test the image (no API keys → offline fallbacks)
+        run: |
+          docker run -d --name finnie -p 8501:8501 -e HF_HUB_OFFLINE=1 finnie:ci
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8501/_stcore/health && exit 0
+            sleep 2
+          done
+          docker logs finnie; exit 1

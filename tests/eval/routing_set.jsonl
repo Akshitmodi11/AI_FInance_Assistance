@@ -1,0 +1,60 @@
+{"id": "r01", "question": "What is a bond?", "intents": ["finance_qa"]}
+{"id": "r02", "question": "How does compound interest work?", "intents": ["finance_qa"]}
+{"id": "r03", "question": "What's the difference between a stock and a mutual fund?", "intents": ["finance_qa"]}
+{"id": "r04", "question": "What does an expense ratio mean?", "intents": ["finance_qa"]}
+{"id": "r05", "question": "Explain diversification like I'm 12", "intents": ["finance_qa"]}
+{"id": "r06", "question": "What is an index fund and why do people like them?", "intents": ["finance_qa"]}
+{"id": "r07", "question": "What is the difference between common and preferred stock?", "intents": ["finance_qa"]}
+{"id": "r08", "question": "Are ETFs riskier than mutual funds?", "intents": ["finance_qa"]}
+{"id": "r09", "question": "What does dollar-cost averaging mean?", "intents": ["finance_qa"]}
+{"id": "r10", "question": "Why do bond prices fall when interest rates rise?", "intents": ["finance_qa"]}
+{"id": "r11", "question": "What's the Roth IRA contribution limit for 2025?", "intents": ["tax"]}
+{"id": "r12", "question": "Can I deduct my traditional IRA contributions if I have a 401(k) at work?", "intents": ["tax"]}
+{"id": "r13", "question": "Traditional vs Roth IRA — which gets taxed when?", "intents": ["tax"]}
+{"id": "r14", "question": "How much can a family put in an HSA this year?", "intents": ["tax"]}
+{"id": "r15", "question": "What happens if I contribute too much to my IRA?", "intents": ["tax"]}
+{"id": "r16", "question": "How long do I have to roll over money from my old 401k?", "intents": ["tax"]}
+{"id": "r17", "question": "Is there a penalty for using HSA money for non-medical expenses?", "intents": ["tax"]}
+{"id": "r18", "question": "What is the Saver's Credit?", "intents": ["tax"]}
+{"id": "r19", "question": "My wife doesn't work, can she still contribute to an IRA?", "intents": ["tax"]}
+{"id": "r20", "question": "What is a backdoor Roth conversion?", "intents": ["tax"]}
+{"id": "r21", "question": "Analyze my portfolio: 10 AAPL, 5 MSFT, 20 VTI", "intents": ["portfolio"]}
+{"id": "r22", "question": "Is my portfolio diversified enough?", "intents": ["portfolio"]}
+{"id": "r23", "question": "I own 50 TSLA and nothing else, how risky is that?", "intents": ["portfolio"]}
+{"id": "r24", "question": "Check my holdings: VOO 15, BND 30, VXUS 10", "intents": ["portfolio"]}
+{"id": "r25", "question": "What's my allocation between stocks and bonds?", "intents": ["portfolio"]}
+{"id": "r26", "question": "How concentrated are my investments?", "intents": ["portfolio"]}
+{"id": "r27", "question": "Review my portfolio and tell me what the fund costs are", "intents": ["portfolio"]}
+{"id": "r28", "question": "I have 100 shares of KO and 20 of JNJ, is that balanced?", "intents": ["portfolio"]}
+{"id": "r29", "question": "I want to save $50,000 for a house in 5 years", "intents": ["goal"]}
+{"id": "r30", "question": "How much should I save each month to retire with $1 million in 30 years?", "intents": ["goal"]}
+{"id": "r31", "question": "I need a $10k emergency fund within 2 years, I have $2k", "intents": ["goal"]}
+{"id": "r32", "question": "Can I reach $100,000 in 10 years if I invest $500 a month?", "intents": ["goal"]}
+{"id": "r33", "question": "Plan a college fund of $80,000 for my daughter in 15 years", "intents": ["goal"]}
+{"id": "r34", "question": "How long until I have $25,000 saving $300 a month?", "intents": ["goal"]}
+{"id": "r35", "question": "I'd like to buy a car for $30k in 4 years, what's the monthly saving?", "intents": ["goal"]}
+{"id": "r36", "question": "Set up a savings plan for a $15,000 wedding in 3 years", "intents": ["goal"]}
+{"id": "r37", "question": "What's the stock price of AAPL right now?", "intents": ["market"]}
+{"id": "r38", "question": "How is NVDA performing this year?", "intents": ["market"]}
+{"id": "r39", "question": "Is the S&P 500 up or down today?", "intents": ["market"]}
+{"id": "r40", "question": "Show me the trend for VTI", "intents": ["market"]}
+{"id": "r41", "question": "What's MSFT's 52-week high?", "intents": ["market"]}
+{"id": "r42", "question": "Quote for QQQ please", "intents": ["market"]}
+{"id": "r43", "question": "How did the market do today?", "intents": ["market"]}
+{"id": "r44", "question": "Is TSLA above its 50-day moving average?", "intents": ["market"]}
+{"id": "r45", "question": "Any news on Tesla?", "intents": ["news"]}
+{"id": "r46", "question": "What are the latest headlines about the Federal Reserve?", "intents": ["news"]}
+{"id": "r47", "question": "What's happening with Apple this week?", "intents": ["news"]}
+{"id": "r48", "question": "Give me today's stock market news", "intents": ["news"]}
+{"id": "r49", "question": "Latest on NVIDIA earnings", "intents": ["news"]}
+{"id": "r50", "question": "Any recent news about inflation?", "intents": ["news"]}
+{"id": "r51", "question": "How is AAPL doing and is there any news on it?", "intents": ["market", "news"]}
+{"id": "r52", "question": "Analyze my portfolio of 10 VTI and 5 BND and explain what a bond is", "intents": ["portfolio", "finance_qa"]}
+{"id": "r53", "question": "I want $40k in 6 years; should I use a Roth IRA for it?", "intents": ["goal", "tax"]}
+{"id": "r54", "question": "What's the price of VOO and what is an index fund?", "intents": ["market", "finance_qa"]}
+{"id": "r55", "question": "Check my holdings 20 SPY and 10 TLT and give me news on bonds", "intents": ["portfolio", "news"]}
+{"id": "r56", "question": "How much should I save monthly for $200k in 20 years, and what's the HSA limit?", "intents": ["goal", "tax"]}
+{"id": "r57", "question": "NVDA trend plus the latest headlines", "intents": ["market", "news"]}
+{"id": "r58", "question": "Explain capital gains tax and how my portfolio of 30 AAPL is diversified", "intents": ["tax", "portfolio"]}
+{"id": "r59", "question": "what is a 401k", "intents": ["tax"]}
+{"id": "r60", "question": "TSLA", "intents": ["market"]}

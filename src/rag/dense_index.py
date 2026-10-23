@@ -76,6 +76,16 @@ class DenseIndex:
             if row_id >= 0
         ]
 
+    def vector(self, row: int) -> np.ndarray:
+        """The stored (normalized) vector for ``row`` — a cheap lookup, no re-embedding."""
+        return self.index.reconstruct(int(row))
+
+    def vectors(self, rows: list[int]) -> np.ndarray:
+        """Stored vectors for several rows, shape ``(len(rows), dim)``, in the given order."""
+        if not rows:
+            return np.empty((0, self.index.d), dtype=np.float32)
+        return np.stack([self.vector(row) for row in rows])
+
     def save(self, directory: Path) -> None:
         if self.index is None:
             raise ValueError("cannot save an uninitialized index")

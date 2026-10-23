@@ -61,6 +61,9 @@ class RAGConfig(BaseModel):
     candidate_k: int = 20
     rrf_k: int = 60
     min_score: float = 0.35
+    vector_store: Literal["faiss", "qdrant"] = "faiss"
+    qdrant_collection: str = "finnie_chunks"
+    qdrant_local_path: Path = Path("data/qdrant")
     categories: list[str] = []
 
 
@@ -144,6 +147,8 @@ class Secrets(BaseSettings):
     alpha_vantage_api_key: SecretStr | None = None
     tavily_api_key: SecretStr | None = None
     langsmith_api_key: SecretStr | None = None
+    qdrant_url: str | None = None  # not secret, but environment-specific → lives with the key
+    qdrant_api_key: SecretStr | None = None
 
 
 @lru_cache

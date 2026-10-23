@@ -1,0 +1,15 @@
+services:
+  finnie:
+    build: .
+    image: finnie:latest
+    ports:
+      - "8501:8501"
+    env_file: .env            # API keys stay out of the image
+    environment:
+      HF_HUB_OFFLINE: "1"     # the model was downloaded at build time
+    volumes:
+      - finnie-cache:/app/.cache   # market-data cache, rate-limit counters, chat memory survive restarts
+    restart: unless-stopped
+
+volumes:
+  finnie-cache:
