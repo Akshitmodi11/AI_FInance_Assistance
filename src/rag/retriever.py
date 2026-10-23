@@ -11,7 +11,7 @@ agent must say it doesn't have reliable information.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, Protocol
 
 import numpy as np
 
@@ -26,11 +26,29 @@ from src.rag.store import ChunkStore
 Mode = Literal["dense", "sparse", "hybrid"]
 
 
+class VectorIndex(Protocol):
+    """What the retriever needs from a dense backend — FAISS ``DenseIndex`` or ``QdrantIndex``."""
+
+    def search(self, query_vector: np.ndarray, k: int) -> list[tuple[int, float]]: ...
+    def vectors(self, rows: list[int]) -> np.ndarray: ...
+    def __len__(self) -> int: ...
+
+
+def load_vector_index(settings: Settings) -> VectorIndex:
+    """FAISS files from ``index_dir``, or the Qdrant collection, per ``rag.vector_store``."""
+    rag = settings.rag
+    if rag.vector_store == "qdrant":
+        from src.rag.qdrant_index import QdrantIndex, make_client  # optional dependency
+
+        return QdrantIndex.connect(make_client(settings), rag.qdrant_collection)
+    return DenseIndex.load(settings.resolve(rag.index_dir))
+
+
 class Retriever:
     def __init__(
         self,
         store: ChunkStore,
-        dense: DenseIndex,
+        dense: VectorIndex,
         sparse: SparseIndex,
         embedder: Embedder,
         *,
@@ -52,12 +70,19 @@ class Retriever:
 
     @classmethod
     def from_settings(cls, settings: Settings, embedder: Embedder | None = None) -> Retriever:
-        """Load the indexes built by ``python -m src.rag.ingest``."""
+        """Load the indexes built by ``python -m src.rag.ingest`` (dense backend per config)."""
         rag = settings.rag
         index_dir = settings.resolve(rag.index_dir)
+        store = ChunkStore.load(index_dir)
+        dense = load_vector_index(settings)
+        if len(dense) != len(store):  # row numbers must line up across all three
+            raise ValueError(
+                f"{rag.vector_store} has {len(dense)} vectors but the chunk store has {len(store)}"
+                " — re-run ingest (and `python -m src.rag.qdrant_index` for Qdrant)"
+            )
         return cls(
-            store=ChunkStore.load(index_dir),
-            dense=DenseIndex.load(index_dir),
+            store=store,
+            dense=dense,
             sparse=SparseIndex.load(index_dir),
             embedder=embedder or SentenceTransformerEmbedder(rag.embedding_model),
             mode=rag.retrieval_mode,
@@ -117,12 +142,12 @@ class Retriever:
         ranked = ranked[:k]
 
         # 4. Evidence — dense_score must be filled even for BM25-only hits (gate needs it).
-        evidence = []
-        for row, score in ranked:
-            dense_score = dense_hits.get(row)
-            if dense_score is None:
-                dense_score = self._cosine(query_vec, row)
-            evidence.append(Evidence(chunk=self.store[row], score=score, dense_score=dense_score))
+        missing = [row for row, _ in ranked if row not in dense_hits]
+        cosines = {**dense_hits, **self._cosines(query_vec, missing)}  # one batched lookup
+        evidence = [
+            Evidence(chunk=self.store[row], score=score, dense_score=cosines[row])
+            for row, score in ranked
+        ]
 
         # 5. Confidence gate on the best dense cosine (RRF scores are not calibrated).
         top = max((e.dense_score for e in evidence), default=None)
@@ -133,15 +158,19 @@ class Retriever:
             top_dense_score=top,
         )
 
-    def _cosine(self, query_vec: np.ndarray, row: int) -> float:
-        """Cosine between the query and an indexed chunk, without re-embedding the chunk.
+    def _cosines(self, query_vec: np.ndarray, rows: list[int]) -> dict[int, float]:
+        """Cosine between the query and indexed chunks, without re-embedding the chunks.
 
-        Trade-off: ``IndexFlatIP`` keeps the (normalized) vectors, so ``reconstruct`` is a cheap
-        array lookup. Re-embedding ``chunk.embedding_text`` instead would cost one model call
-        per BM25-only hit (~10 ms each on CPU). An approximate index (IVF/PQ) would need
-        ``make_direct_map()`` or a separate vector cache for this to work.
+        Trade-off: both backends keep the (normalized) vectors, so this is a lookup — an array
+        read for FAISS, **one batched** round trip for Qdrant (not one per row: that N+1 pattern
+        made sparse mode 5x slower on Qdrant Cloud). Re-embedding ``chunk.embedding_text``
+        instead would cost a model call per BM25-only hit (~10 ms each on CPU).
         """
-        chunk_vec = self.dense.index.reconstruct(int(row))
+        if not rows:
+            return {}
         query = np.asarray(query_vec, dtype=np.float32)
         norm = float(np.linalg.norm(query))
-        return float(chunk_vec @ query / norm) if norm else 0.0
+        if not norm:
+            return dict.fromkeys(rows, 0.0)
+        scores = self.dense.vectors(rows) @ query / norm
+        return {row: float(s) for row, s in zip(rows, scores, strict=True)}

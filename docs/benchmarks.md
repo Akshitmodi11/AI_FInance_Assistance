@@ -41,8 +41,29 @@ the bottom is labelled by that heading. Two alternatives, each with a full rebui
 **Decision: keep the current rule.** Hybrid recall is identical; the variants only change *which* 3 questions
 miss. With 36 answerable questions, one question ≈ 0.03 — these differences are within noise.
 
+## Experiment 2 — FAISS vs Qdrant Cloud (2026-10-22)
+
+Same 590 vectors (copied from FAISS, not re-embedded), same 43 questions, exact search on both.
+Qdrant Cloud cluster in AWS us-east-1, queried from India. Setup and commands: `docs/vector_store.md`.
+
+| Store | Mode | Recall@5 | MRR | No-answer acc. | p50 ms |
+|---|---|---|---|---|---|
+| FAISS | dense | 0.86 | 0.71 | 1.00 | 4 |
+| FAISS | sparse | 0.78 | 0.67 | 1.00 | 4 |
+| FAISS | hybrid | 0.92 | 0.73 | 1.00 | 5 |
+| Qdrant Cloud | dense | 0.86 | 0.71 | 1.00 | 108 |
+| Qdrant Cloud | sparse | 0.78 | 0.67 | 1.00 | 100 |
+| Qdrant Cloud | hybrid | 0.92 | 0.73 | 1.00 | 111 |
+
+- **Quality identical** in every mode and question type → the backend swap is correct.
+- **Latency = network round trips** (~100 ms India → us-east-1).
+- **N+1 bug found and fixed:** sparse mode first measured **488 ms** on Qdrant, because the confidence
+  gate fetched each BM25-only hit's vector in a separate call. Batching into one `retrieve` → **100 ms**
+  (4.9x faster); FAISS unchanged.
+- Decision: FAISS stays the default for this corpus size; Qdrant is a config switch away.
+
 ## Next experiments
 - Corpus balance: add plain-language Markdown articles, re-run (before/after).
 - Chunk size sweep: 400 / 800 / 1200.
 - Fixed-size chunking baseline and "no contextual header" ablation (see `docs/chunking_strategy.md`).
-- Stretch: FAISS vs Qdrant backend; cross-encoder reranker as a 4th row.
+- Stretch: Qdrant native hybrid (server-side dense + sparse fusion); cross-encoder reranker as a 4th row.

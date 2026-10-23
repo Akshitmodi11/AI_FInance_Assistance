@@ -29,6 +29,9 @@ rag:
   candidate_k: 20             # how many each retriever returns before fusion
   rrf_k: 60                   # Reciprocal Rank Fusion constant
   min_score: 0.35             # top dense cosine below this -> "I don't know"
+  vector_store: faiss         # faiss (local files) | qdrant (Cloud if QDRANT_URL is set, else local)
+  qdrant_collection: finnie_chunks
+  qdrant_local_path: data/qdrant  # used only when QDRANT_URL is empty
   categories:
     - basics
     - investing

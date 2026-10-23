@@ -29,6 +29,15 @@ def test_secrets_are_masked(monkeypatch):
     assert "sk-test-123" not in repr(secrets)
 
 
+def test_qdrant_settings_load_and_key_is_masked(monkeypatch):
+    monkeypatch.setenv("QDRANT_URL", "https://example.cloud.qdrant.io:6333")
+    monkeypatch.setenv("QDRANT_API_KEY", "qd-test-456")
+    secrets = Secrets(_env_file=None)
+    assert secrets.qdrant_url == "https://example.cloud.qdrant.io:6333"
+    assert secrets.qdrant_api_key.get_secret_value() == "qd-test-456"
+    assert "qd-test-456" not in repr(secrets)
+
+
 def test_missing_secrets_are_none(monkeypatch):
     monkeypatch.delenv("TAVILY_API_KEY", raising=False)
     assert Secrets(_env_file=None).tavily_api_key is None

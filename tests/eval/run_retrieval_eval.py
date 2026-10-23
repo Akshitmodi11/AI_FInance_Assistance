@@ -99,14 +99,22 @@ def main() -> None:
     parser.add_argument("--k", type=int, default=5)
     parser.add_argument("--modes", nargs="+", default=list(MODES), choices=MODES)
     parser.add_argument("--show-misses", action="store_true")
+    parser.add_argument(
+        "--store", choices=("faiss", "qdrant"), help="override rag.vector_store from config.yaml"
+    )
     args = parser.parse_args()
 
-    retriever = Retriever.from_settings(get_settings())
+    settings = get_settings()
+    if args.store:
+        settings = settings.model_copy(
+            update={"rag": settings.rag.model_copy(update={"vector_store": args.store})}
+        )
+    retriever = Retriever.from_settings(settings)
     dataset = load_dataset()
     retriever.retrieve("warm up the embedding model")  # keep model load out of latency
 
     rows = [evaluate(retriever, dataset, mode, args.k) for mode in args.modes]
-    print(f"\n{len(dataset)} questions\n")
+    print(f"\n{len(dataset)} questions · vector store: {settings.rag.vector_store}\n")
     print_table(rows, args.k)  # paste this Markdown table into README / docs/benchmarks.md
 
     if args.show_misses:

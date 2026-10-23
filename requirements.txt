@@ -8,6 +8,7 @@ langsmith>=0.3
 
 # --- RAG ---
 faiss-cpu>=1.9
+qdrant-client>=1.12  # optional 2nd vector-store backend (local mode or Qdrant Cloud)
 sentence-transformers>=3.3
 python-frontmatter>=1.1
 rank-bm25>=0.2.2
