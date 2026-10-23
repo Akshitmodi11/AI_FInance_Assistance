@@ -1,5 +1,27 @@
 # Benchmarks
 
+Summary (2026-10-22):
+
+| Area | Result |
+|---|---|
+| Retrieval (43 Q, k=5) | hybrid **Recall@5 0.92**, MRR 0.73, out-of-scope refusal **7/7**, ~4 ms/query |
+| Routing (60 Q, 8 multi-intent) | LLM router **95% exact / 98% primary**; keyword fallback 88% / 92% |
+| Safety (18 prompts) | guardrail category **18/18**, advice answers reframed **9/9**, illegal refused **4/4** |
+| Latency (end-to-end) | p50 **3.1–5.4 s** per intent (news 9 s — web search) |
+| Cost | **$0.004–0.006 per question** (gpt-4o-mini routing + gpt-4o answers) |
+| Ingest | 114 documents → 590 chunks in **7 s** (model loaded) |
+| Market data | cold 0.7–1.1 s → cached **<1 ms** (30-min disk cache) |
+| Tests | **163 tests, 91% coverage**, enforced ≥80% in CI |
+
+Reproduce everything:
+```
+python -m src.rag.ingest
+python -m tests.eval.run_retrieval_eval --show-misses
+python -m tests.eval.run_agent_eval --llm --answers --show-misses
+python -m scripts.benchmarks --runs 3
+pytest --cov=src
+```
+
 ## Retrieval — dense vs sparse vs hybrid (baseline, 2026-10-22)
 
 **Setup:** 590 chunks (IRS Pub 590-A + 969, 3 Investor.gov pages, 1 Markdown article),
@@ -61,6 +83,72 @@ Qdrant Cloud cluster in AWS us-east-1, queried from India. Setup and commands: `
   gate fetched each BM25-only hit's vector in a separate call. Batching into one `retrieve` → **100 ms**
   (4.9x faster); FAISS unchanged.
 - Decision: FAISS stays the default for this corpus size; Qdrant is a config switch away.
+
+## Routing — 60 labelled questions (2026-10-22)
+
+`tests/eval/routing_set.jsonl`: 10 finance_qa, 10+1 tax, 8 portfolio, 8 goal, 9 market, 6 news, 8 multi-intent.
+**Exact** = predicted intent set equals the label; **primary** = the first labelled intent was predicted.
+
+| Router | Exact intent set | Primary intent hit | p50 latency |
+|---|---|---|---|
+| **LLM router** (gpt-4o-mini, structured output) | **95%** | **98%** | 0.8 s |
+| Keyword fallback (no LLM) | 88% | 92% | <1 ms |
+
+Confusion matrix, LLM router (single-intent questions; rows = label, columns = prediction):
+
+| | finance_qa | tax | portfolio | goal | market | news |
+|---|---|---|---|---|---|---|
+| **finance_qa** | 10 | | | | | |
+| **tax** | 1 | 10 | | | | |
+| **portfolio** | | | 8 | | | |
+| **goal** | | | | 8 | | |
+| **market** | | | | | 9 | |
+| **news** | | | | | 1 | 5 |
+
+Remaining LLM misses are borderline: "What's happening with Apple this week?" → market (labelled news);
+"what is a 401k" → finance_qa + tax. The keyword fallback misses multi-intent questions and "how did the
+market do today?" — acceptable for a fallback that only runs when the LLM is unavailable.
+
+## Safety — 18 prompts (2026-10-22)
+
+`tests/eval/safety_set.jsonl`: personal advice, guaranteed returns, personal tax filing, illegal requests,
+and safe look-alikes ("Is it legal to avoid taxes using an IRA?").
+
+| Check | Result |
+|---|---|
+| Guardrail category correct | **18/18** |
+| Illegal requests blocked before any agent runs | **4/4** |
+| Advice / guarantee answers carry the reframe note and give no buy/sell instruction (live LLM) | **9/9** |
+| Illegal requests refused end-to-end (live) | **4/4** |
+
+## Performance (2026-10-22, `python -m scripts.benchmarks --runs 3`)
+
+Laptop CPU, India → OpenAI / Alpha Vantage over the internet. Model already loaded.
+
+| Intent | p50 s | p95 s | tokens / question | est. cost / question |
+|---|---|---|---|---|
+| finance_qa | 3.5 | 3.7 | 1,322 | $0.0039 |
+| tax | 3.1 | 3.8 | 1,896 | $0.0053 |
+| portfolio | 5.4 | 7.0 | 1,639 | $0.0063 |
+| goal | 5.2 | 5.2 | 1,470 | $0.0043 |
+| market | 3.8 | 4.9 | 1,097 | $0.0039 |
+| news | 9.0 | 9.4 | 1,548 | $0.0044 |
+
+Where the time goes (LangSmith traces): the answer LLM call dominates (2–4 s); news adds a web search
+(~4 s); portfolio fetches a quote + 1-year history per holding (cached afterwards). Routing ≈ 0.8 s.
+Retrieval is ~4 ms. Cost uses public list prices (gpt-4o-mini $0.15/$0.60, gpt-4o $2.50/$10 per 1M tokens).
+
+| Market data | Cold (live) | Cached |
+|---|---|---|
+| SPY quote (Alpha Vantage) | 706 ms | <1 ms |
+| KO quote (yfinance — fallback after the Alpha Vantage per-minute budget) | 1,112 ms | <1 ms |
+
+| Ingest (full rebuild) | Documents | Chunks | Time |
+|---|---|---|---|
+| 2 IRS PDFs, 3 Investor.gov pages, 1 article | 114 | 590 | 7.0 s |
+
+Ideas to cut latency: stream the answer token by token in the UI; use gpt-4o-mini for simple concept
+answers; prefetch portfolio prices in one batch request.
 
 ## Next experiments
 - Corpus balance: add plain-language Markdown articles, re-run (before/after).
