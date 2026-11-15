@@ -1,14 +1,15 @@
 # Finnie — Design
 
 Finnie is a multi-agent financial-education assistant: six specialist agents coordinated by a LangGraph
-workflow, grounded in a cited knowledge base and live market data, with a Streamlit UI and an MCP server.
+workflow, grounded in a cited knowledge base and live market data. People use it through a React web app
+(served by a FastAPI backend), a terminal chat, or Claude Desktop via an MCP server.
 This document explains how it is built and why. Measurements: `docs/benchmarks.md`.
 
 ## 1. Architecture
 
 ```mermaid
 flowchart LR
-    UI[Streamlit app<br/>5 tabs] --> G
+    UI[React app<br/>6 pages] --> API[FastAPI] --> G
     CLI[CLI chat] --> G
     MCP[MCP server<br/>Claude Desktop] --> G
     MCP --> T
@@ -34,7 +35,7 @@ flowchart LR
 
 | Layer | Code | Responsibility |
 |---|---|---|
-| Interfaces | `src/web_app/`, `src/workflow/cli.py`, `src/mcp_server/` | UI, terminal, Claude Desktop |
+| Interfaces | `frontend/` (React), `src/api/` (FastAPI), `src/workflow/cli.py`, `src/mcp_server/` | web app + REST API, terminal, Claude Desktop |
 | Orchestration | `src/workflow/` (graph, router, guardrails, synthesizer) | who answers, in what order, safely |
 | Agents | `src/agents/` | one specialist per domain, all on `BaseAgent` |
 | Tools | `src/agents/tools.py`, `src/utils/finance_math.py` | facts and numbers, deterministic |
@@ -129,7 +130,24 @@ cache hit? → yes → return (is_cached)          Alpha Vantage: 5/min, 25/day 
 Every quote carries `source`, `as_of`, `is_cached`, `is_mock`, and the UI shows them, so users always know
 how fresh a number is. The disk cache survives restarts, which protects the 25/day quota.
 
-## 7. Key decisions and trade-offs
+## 7. Web app
+
+The React app (`frontend/`, Vite + TypeScript + Recharts) is a thin client: six pages (Chat, Portfolio,
+Markets, Goals, Knowledge, Insights) that call the REST API in `src/api/main.py`. Each endpoint wraps
+code the agents and the MCP server already use (`ask()`, `analyze_portfolio`, `plan_goal`,
+`MarketData.snapshot`, `Retriever.retrieve`), so the UI adds no business logic.
+
+- **One container:** a multi-stage Docker build compiles the React app with Node and copies only the static
+  files into the Python image; FastAPI serves them next to `/api` and the OpenAPI docs at `/docs`.
+- **State:** the browser keeps the chat thread id, the analyzed portfolio and the profile; conversation
+  memory itself stays server-side in the LangGraph checkpointer, keyed by thread id.
+- **Trust signals in the UI:** agent tags on every answer, cited sources, data-source and freshness badges on
+  every price, and a "sample data" badge whenever the mock provider is used.
+- **Look:** dark broker-style theme by default (light mode toggle), live index strip, green/red price moves.
+- The original Streamlit UI (`src/web_app/`) still runs and was the first interface; React replaced it as the
+  default because it looks and behaves like a production product and separates frontend from backend.
+
+## 8. Key decisions and trade-offs
 
 | Decision | Alternatives | Why |
 |---|---|---|
@@ -143,27 +161,29 @@ how fresh a number is. The disk cache survives restarts, which protects the 25/d
 | Cross-encoder rerank of 20 candidates | hybrid only; LLM reranking | +11 pts MRR for ~350 ms, local and free; an LLM reranker would add cost and ~1 s |
 | gpt-4o-mini (router) + gpt-4o (answers), Gemini switchable | one model | cost/latency where quality matters less |
 | MCP server (stdio) | A2A | standard tool access for Claude Desktop now; A2A only pays off for separately deployed agents |
-| Streamlit | React + API | rubric requirement and speed; the backend is UI-agnostic (`ask()`), so a React front-end is a later add-on |
+| React + FastAPI (Streamlit first) | Streamlit only | Streamlit was the fast first UI; because the backend is UI-agnostic (`ask()`), the React app is a thin client over a REST API that wraps the same agents and tools, served from one container |
 
-## 8. Performance and observability
+## 9. Performance and observability
 
 - p50 3–5 s per question (answer LLM dominates), ~$0.005 per question; retrieval ~4 ms.
 - LangSmith tracing (env-configured) shows every node, LLM call and token count per question.
 - `MarketData.stats` counts cache hits, fallbacks and provider errors.
-- Scaling path: stream tokens to the UI; cache LLM answers for repeated questions; move the index to Qdrant
+- Scaling path: stream tokens to the UI (server-sent events from `/api/chat`); cache LLM answers for repeated questions; move the index to Qdrant
   and the checkpointer to Postgres for multiple app instances.
 
-## 9. Testing strategy
+## 10. Testing strategy
 
 - **Unit**: finance math edge cases (empty, single holding, zero rate, already-reached goal), parsers,
   guardrails, router, loaders, chunking, indexes, providers with mocked HTTP (rate-limit notes, malformed
   JSON, HTTP 500, timeouts + retry, budgets that survive restarts), charts.
 - **Integration**: full graph per intent with a fake LLM, multi-intent fan-out, memory per thread,
-  per-turn reset, degraded mode, MCP tools via the MCP API, ingest → retrieve, FAISS vs Qdrant parity.
+  per-turn reset, degraded mode, MCP tools via the MCP API, every REST endpoint (FastAPI test client),
+  ingest → retrieve, FAISS vs Qdrant parity.
 - **Evaluation** (live, not in CI): retrieval (59 Q), routing (60 Q), safety (18 prompts).
-- CI: ruff lint + format, secret check, 183 tests offline, **coverage ≥ 80% enforced** (currently 91%).
+- CI: ruff lint + format, secret check, 210 tests offline, **coverage ≥ 80% enforced** (currently 91%);
+  React type-check + build; Docker image build with a smoke test of the API and the served app.
 
-## 10. Limitations
+## 11. Limitations
 
 - Educational only — no personalized advice by design; tax content covers 2025 IRS publications.
 - Corpus is PDF-heavy; more plain-language articles would help beginner questions.

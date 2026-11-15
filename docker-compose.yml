@@ -3,7 +3,7 @@ services:
     build: .
     image: finnie:latest
     ports:
-      - "8501:8501"
+      - "8000:8000"   # React app + API (API docs at /docs)
     env_file: .env            # API keys stay out of the image
     environment:
       HF_HUB_OFFLINE: "1"     # the model was downloaded at build time
