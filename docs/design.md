@@ -20,7 +20,7 @@ flowchart LR
         A1 & A2 & A3 & A4 & A5 & A6 --> S[synthesizer]
     end
     subgraph T[Deterministic tools]
-        RAG[Hybrid retriever<br/>FAISS/Qdrant + BM25 + RRF]
+        RAG[Hybrid retriever<br/>FAISS/Qdrant + BM25 + RRF<br/>→ cross-encoder rerank]
         FM[finance_math]
         MD[Market data chain<br/>Alpha Vantage → yfinance → mock<br/>+ 30-min cache]
         NW[News: Tavily → mock]
@@ -94,7 +94,8 @@ scenarios), and routing uses keywords. Tested in `test_degraded_mode_without_llm
 
 ## 5. RAG
 
-- **Corpus**: IRS Publications 590-A and 969 (PDF), SEC Investor.gov pages (HTML), Markdown articles;
+- **Corpus**: IRS Publications 590-A and 969 (PDF), SEC Investor.gov pages (HTML), 15 plain-language Markdown articles
+  (basics, budgeting and goals, markets, investing, diversification);
   every non-Markdown source registered in `data/kb/manifest.yaml` (title, URL, category, tax year) —
   ingestion refuses unregistered files, so every answer is citable.
 - **Loaders** (from profiling the real documents, `notebooks/profile_corpus.py`): PDF page-level docs with
@@ -105,9 +106,14 @@ scenarios), and routing uses keywords. Tested in `test_degraded_mode_without_llm
   `docs/chunking_strategy.md`.
 - **Retrieval**: dense (`all-MiniLM-L6-v2`, FAISS `IndexFlatIP`, cosine) + sparse (BM25 with a finance
   tokenizer: `401(k)`→`401k`, `S&P`, `P/E`) fused with **Reciprocal Rank Fusion**. Hybrid beats dense by
-  6 points and sparse by 14 (Recall@5 0.92).
+  6 points and sparse by 14 on the original 43 questions (Recall@5 0.92); 0.92 on all 59 after the
+  corpus-balance experiment (`docs/benchmarks.md`, Experiment 3).
+- **Reranking** (default): a cross-encoder (`ms-marco-MiniLM-L-6-v2`) reads each (query, chunk) pair for the
+  20 hybrid candidates and reorders them — Recall@5 0.92 → **0.96**, MRR 0.79 → **0.90**, ~350 ms on CPU
+  (Experiment 4). Retrieve-then-rerank keeps the slow, accurate model off the full corpus.
 - **Confidence gate**: RRF scores only encode rank, so confidence uses the best **dense cosine** (≥ 0.35).
-  Off-topic questions are refused 7/7.
+  Off-topic questions are refused 7/7 on the original corpus, 6/7 after adding market articles
+  ("options strategy" now scores 0.403 — kept the threshold rather than tune it to one question).
 - **Vector store**: FAISS by default; Qdrant (Cloud or local) behind the same `VectorIndex` protocol —
   identical quality, ~100 ms network latency; the benchmark exposed and fixed an N+1 lookup
   (`docs/vector_store.md`).
@@ -134,6 +140,7 @@ how fresh a number is. The disk cache survives restarts, which protects the 25/d
 | Deterministic synthesizer | LLM merge | lower latency/cost, no extra hallucination |
 | FAISS default, Qdrant optional | Chroma, pgvector | exact search in ms at this size; Qdrant for shared/live indexes |
 | Hybrid retrieval with RRF | dense only | +6 points recall; exact terms and paraphrases both covered |
+| Cross-encoder rerank of 20 candidates | hybrid only; LLM reranking | +11 pts MRR for ~350 ms, local and free; an LLM reranker would add cost and ~1 s |
 | gpt-4o-mini (router) + gpt-4o (answers), Gemini switchable | one model | cost/latency where quality matters less |
 | MCP server (stdio) | A2A | standard tool access for Claude Desktop now; A2A only pays off for separately deployed agents |
 | Streamlit | React + API | rubric requirement and speed; the backend is UI-agnostic (`ask()`), so a React front-end is a later add-on |
@@ -153,8 +160,8 @@ how fresh a number is. The disk cache survives restarts, which protects the 25/d
   JSON, HTTP 500, timeouts + retry, budgets that survive restarts), charts.
 - **Integration**: full graph per intent with a fake LLM, multi-intent fan-out, memory per thread,
   per-turn reset, degraded mode, MCP tools via the MCP API, ingest → retrieve, FAISS vs Qdrant parity.
-- **Evaluation** (live, not in CI): retrieval (43 Q), routing (60 Q), safety (18 prompts).
-- CI: ruff lint + format, secret check, 163 tests offline, **coverage ≥ 80% enforced** (currently 91%).
+- **Evaluation** (live, not in CI): retrieval (59 Q), routing (60 Q), safety (18 prompts).
+- CI: ruff lint + format, secret check, 183 tests offline, **coverage ≥ 80% enforced** (currently 91%).
 
 ## 10. Limitations
 

@@ -1,17 +1,19 @@
 # Benchmarks
 
-Summary (2026-10-22):
+Summary (updated 2026-11-14):
 
 | Area | Result |
 |---|---|
-| Retrieval (43 Q, k=5) | hybrid **Recall@5 0.92**, MRR 0.73, out-of-scope refusal **7/7**, ~4 ms/query |
+| Retrieval (59 Q, k=5) | **rerank Recall@5 0.96, MRR 0.90**, out-of-scope refusal **7/7**, ~360 ms/query · hybrid 0.92 / 0.79, ~4 ms |
+| Reranker (Exp. 4) | cross-encoder over 20 hybrid candidates: **+4 pts recall, +11 pts MRR**, no extra false refusals |
+| Corpus balance (Exp. 3) | 14 new articles: new-topic questions **0.00 → 1.00** recall; original 43: 0.92 → 0.89 |
 | Routing (60 Q, 8 multi-intent) | LLM router **95% exact / 98% primary**; keyword fallback 88% / 92% |
 | Safety (18 prompts) | guardrail category **18/18**, advice answers reframed **9/9**, illegal refused **4/4** |
 | Latency (end-to-end) | p50 **3.1–5.4 s** per intent (news 9 s — web search) |
 | Cost | **$0.004–0.006 per question** (gpt-4o-mini routing + gpt-4o answers) |
-| Ingest | 114 documents → 590 chunks in **7 s** (model loaded) |
+| Ingest | 192 documents → 668 chunks in **15 s** (incl. model load) |
 | Market data | cold 0.7–1.1 s → cached **<1 ms** (30-min disk cache) |
-| Tests | **163 tests, 91% coverage**, enforced ≥80% in CI |
+| Tests | **183 tests, 91% coverage**, enforced ≥80% in CI |
 
 Reproduce everything:
 ```
@@ -84,6 +86,75 @@ Qdrant Cloud cluster in AWS us-east-1, queried from India. Setup and commands: `
   (4.9x faster); FAISS unchanged.
 - Decision: FAISS stays the default for this corpus size; Qdrant is a config switch away.
 
+## Experiment 3 — Corpus balance: 14 plain-language articles (2026-11-05)
+
+**Why:** the knowledge base covered only 3 of the 6 categories in `config.yaml` (investing, retirement_tax,
+diversification), and 544 of 590 chunks were IRS PDF pages. Questions about budgeting, emergency funds,
+compounding or market basics had nothing to retrieve.
+
+**Change:** 14 Markdown articles written in plain language, each citing a public reference page
+(SEC Investor.gov, CFPB, FINRA): 4 `basics`, 4 `goals_budgeting`, 4 `markets`, 1 `investing`,
+1 `diversification`. Index: 590 → **668 chunks** (PDF share 92% → 81%). 16 new labelled questions
+(ids `k01`–`k16`) added to `retrieval_set.jsonl`, written **before** re-indexing and measured on both
+indexes. Thresholds and retrieval settings unchanged.
+
+| Question set | Mode | Before R@5 | After R@5 | Before MRR | After MRR |
+|---|---|---|---|---|---|
+| New topics (16) | dense | 0.00 | **1.00** | 0.00 | 0.90 |
+| New topics (16) | sparse | 0.00 | **0.94** | 0.00 | 0.85 |
+| New topics (16) | hybrid | 0.00 | **1.00** | 0.00 | **0.93** |
+| Original (43) | dense | 0.86 | 0.86 | 0.71 | 0.71 |
+| Original (43) | sparse | 0.78 | 0.78 | 0.67 | 0.64 |
+| Original (43) | hybrid | 0.92 | 0.89 | 0.73 | 0.72 |
+| All (59) | hybrid | 0.63 | **0.92** | 0.51 | **0.79** |
+
+Out-of-scope refusal (dense-cosine gate, `min_score = 0.35`): 7/7 before → **6/7** after.
+
+**Findings**
+- **The old corpus answered confidently from the wrong documents.** Before the change, 11 of the 16
+  new-topic questions passed the "I don't know" gate on unrelated chunks, e.g. *"What is the 50/30/20
+  rule?"* → IRS Pub 590-A. Missing content is a correctness problem, not just a coverage gap.
+- **One original question regressed:** q001 *"Why shouldn't I put all my money in one stock?"* now
+  retrieves the new *How Stock Markets Work* article and Investor.gov *Stocks* page instead of the
+  diversification article — the word "stock" pulls toward stock-market content. Labels were not
+  widened after the fact.
+- **One off-topic question now passes the gate:** q901 *"best options strategy for earnings week"*
+  scores 0.403 against the new market articles. The lowest *answerable* question scores 0.412 (p12),
+  so a threshold separating them would be fitted to a single point; kept 0.35. The answer prompt's
+  "if the facts don't answer the question, say so" rule is the second line of defence.
+- **Dense gate vs exact terms:** k06 *"50/30/20 rule"* is retrieved correctly (hybrid rank 1) but its
+  dense cosine is 0.343, just under the gate — embeddings handle number patterns poorly. A candidate
+  fix is letting a strong BM25 hit also count as confident.
+
+## Experiment 4 — Cross-encoder reranker (2026-11-14)
+
+**Why:** hybrid retrieval ranks with two *bi-encoder*-style signals (embedding cosine, BM25) that score query
+and chunk separately. A **cross-encoder** reads the (query, chunk) pair together, so it can tell whether the
+chunk actually answers the question — too slow for the whole corpus, cheap on 20 candidates.
+
+**Change:** new `rerank` mode = hybrid candidates (`candidate_k = 20`, category filter first) →
+`cross-encoder/ms-marco-MiniLM-L-6-v2` reorders them → top 5. Chunks are scored with their contextual header
+(title — section). Confidence gate unchanged (dense cosine ≥ 0.35; cross-encoder logits are not calibrated).
+`src/rag/reranker.py`, `config.yaml: rag.retrieval_mode / rerank_model`. Same 59 questions, same index.
+
+| Mode | Recall@5 | MRR | No-answer acc. | R@5 concept | R@5 exact_term | R@5 paraphrase | answerable refused | p50 ms |
+|---|---|---|---|---|---|---|---|---|
+| dense | 0.90 | 0.77 | 0.86 | 0.92 | 1.00 | 0.85 | 1/52 | 4 |
+| sparse | 0.83 | 0.70 | 1.00 | 0.92 | 1.00 | 0.69 | 2/52 | 5 |
+| hybrid (RRF) | 0.92 | 0.79 | 0.86 | 1.00 | 1.00 | 0.85 | 1/52 | 4 |
+| **rerank** | **0.96** | **0.90** | **1.00** | 1.00 | 1.00 | **0.92** | 1/52 | 358 (p95 587) |
+
+**Findings**
+- **MRR +11 points** (0.79 → 0.90): the right chunk moves to the top, which is what the answer LLM reads first.
+  Recall +4 points; the gain is all on **paraphrases** (0.85 → 0.92), where keyword and embedding overlap is weak.
+- Fixed three hybrid misses — p02 (spousal IRA), p09 (HSA catch-up), q001 (the Experiment 3 regression) — and
+  introduced one, p03 (excess contributions → retrieves the filing-deadline page). p04 (60-day rollover) misses in every mode.
+- **Off-topic refusal 6/7 → 7/7, as a side effect:** the gate scores the evidence that is *returned*; for q901
+  the reranked top 5 have lower cosines than the RRF top 5. No answerable question lost confidence (still only k06).
+- **Cost:** ~350 ms on CPU per query (20 pairs, MiniLM-L6), vs a 3–5 s end-to-end answer — under 10%.
+  No API cost; the model (~90 MB) is downloaded once and baked into the Docker image.
+- **Decision: `rerank` is the default.** `retrieval_mode: hybrid` in `config.yaml` switches it off.
+
 ## Routing — 60 labelled questions (2026-10-22)
 
 `tests/eval/routing_set.jsonl`: 10 finance_qa, 10+1 tax, 8 portfolio, 8 goal, 9 market, 6 news, 8 multi-intent.
@@ -151,7 +222,8 @@ Ideas to cut latency: stream the answer token by token in the UI; use gpt-4o-min
 answers; prefetch portfolio prices in one batch request.
 
 ## Next experiments
-- Corpus balance: add plain-language Markdown articles, re-run (before/after).
+- Confidence gate: also accept a strong BM25 hit (fixes k06-style exact-term refusals); re-check q901.
 - Chunk size sweep: 400 / 800 / 1200.
 - Fixed-size chunking baseline and "no contextual header" ablation (see `docs/chunking_strategy.md`).
-- Stretch: Qdrant native hybrid (server-side dense + sparse fusion); cross-encoder reranker as a 4th row.
+- Stretch: Qdrant native hybrid (server-side dense + sparse fusion).
+- Reranker: larger cross-encoder (e.g. `BAAI/bge-reranker-base`) vs latency; rerank 10 vs 20 vs 40 candidates.

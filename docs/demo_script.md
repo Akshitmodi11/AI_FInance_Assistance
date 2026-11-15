@@ -17,7 +17,7 @@ connected · sidebar: knowledge level **beginner**, risk **moderate**. Close oth
 | 6:30–7:00 | **Knowledge** tab: search *HSA contribution limit*, then *best pizza in Naples* | Hybrid retrieval with scores; the second shows the "I don't know" gate. | RAG |
 | 7:00–7:45 | **Claude Desktop**: *Use Finnie to analyze 10 VTI, 5 BND, 3 AAPL* | Same tools via MCP — 7 tools, shared code with the app. | MCP bonus |
 | 7:45–8:15 | **LangSmith** trace of the NVDA question | guardrail → router → market ∥ news → synthesizer, tokens and latency per step. | observability |
-| 8:15–8:50 | `docs/benchmarks.md` summary table + GitHub Actions green run | Recall@5 0.92 hybrid vs 0.86 dense; routing 95%; safety 18/18; 163 tests, 91% coverage; ~$0.005/question. | testing, docs |
+| 8:15–8:50 | `docs/benchmarks.md` summary table + GitHub Actions green run | Recall@5 0.96 with reranker vs 0.92 hybrid vs 0.90 dense; routing 95%; safety 18/18; 183 tests, 91% coverage; ~$0.005/question. | testing, docs |
 
 **Backup if something is slow/fails live:** the fallbacks are a feature — say "Alpha Vantage's free tier is
 25 calls a day, so this switched to Yahoo Finance; the label shows it." Keep a second browser tab with a

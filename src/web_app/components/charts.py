@@ -135,3 +135,49 @@ def goal_projection(plan: dict) -> go.Figure:
     fig.update_xaxes(title="Years from now")
     fig.update_yaxes(title="Projected savings (USD)", tickprefix="$")
     return _layout(fig, "Savings projection by return scenario", height=380)
+
+
+# ----- Insights tab -----
+# Two-series slots from the validated reference palette (blue, orange); text stays in theme ink.
+SERIES = ["#2a78d6", "#eb6834"]
+
+
+def retrieval_modes_bar(rows: list[dict]) -> go.Figure:
+    """Recall@k and MRR per retrieval mode — one 0–1 axis, grouped bars, values labelled."""
+    modes = [r["mode"] for r in rows]
+    fig = go.Figure()
+    for (key, name), color in zip([("recall", "Recall@5"), ("mrr", "MRR")], SERIES, strict=True):
+        values = [r[key] for r in rows]
+        fig.add_trace(
+            go.Bar(
+                name=name,
+                x=modes,
+                y=values,
+                marker={"color": color, "line": {"width": 0}},
+                text=[f"{v:.2f}" for v in values],
+                textposition="outside",
+                hovertemplate=f"%{{x}}<br>{name} %{{y:.2f}}<extra></extra>",
+            )
+        )
+    fig.update_layout(barmode="group", bargap=0.35, bargroupgap=0.08)
+    fig.update_yaxes(range=[0, 1.1], showgrid=True, gridwidth=1, tickformat=".1f")
+    return _layout(fig, "Retrieval quality by mode (higher is better)")
+
+
+def count_bar(counts: dict[str, int], title: str, unit: str = "chunks") -> go.Figure:
+    """Horizontal bar of counts, largest first — a single series, so no legend."""
+    items = sorted(counts.items(), key=lambda kv: -kv[1])
+    fig = go.Figure(
+        go.Bar(
+            x=[v for _, v in items],
+            y=[k for k, _ in items],
+            orientation="h",
+            marker={"color": SERIES[0], "line": {"width": 0}},
+            text=[f"{v:,}" for _, v in items],
+            textposition="auto",
+            hovertemplate=f"%{{y}}: %{{x:,}} {unit}<extra></extra>",
+        )
+    )
+    fig.update_yaxes(autorange="reversed")
+    fig.update_xaxes(title=unit, showgrid=True)
+    return _layout(fig, title, height=60 + 34 * len(items))

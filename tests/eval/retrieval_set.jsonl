@@ -41,3 +41,19 @@
 {"id": "o05", "question": "Who won the 2022 FIFA World Cup?", "expected_sources": [], "type": "out_of_scope"}
 {"id": "o06", "question": "How do I reset my iPhone passcode?", "expected_sources": [], "type": "out_of_scope"}
 {"id": "o07", "question": "What's a good name for a golden retriever puppy?", "expected_sources": [], "type": "out_of_scope"}
+{"id": "k01", "question": "Why does money grow faster the longer it stays invested?", "expected_sources": ["compound-interest:s0", "compound-interest:s2"], "type": "paraphrase", "note": "Compounding; 'Why time matters more than you think'."}
+{"id": "k02", "question": "How long does it take to double my money at 8% a year?", "expected_sources": ["compound-interest:s3"], "type": "concept", "note": "Rule of 72."}
+{"id": "k03", "question": "If my savings account pays 4% but prices go up 3%, what am I really earning?", "expected_sources": ["inflation-and-purchasing-power:s1"], "type": "paraphrase", "note": "Nominal vs real returns."}
+{"id": "k04", "question": "Why do investments that pay more tend to be riskier?", "expected_sources": ["risk-and-return:s0", "risk-and-return:s3"], "type": "concept", "note": "Risk-return trade-off / ladder."}
+{"id": "k05", "question": "How do I know whether I'm a conservative or aggressive investor?", "expected_sources": ["risk-tolerance:s0", "risk-tolerance:s1", "risk-tolerance:s2"], "type": "paraphrase", "note": "Risk tolerance profiles."}
+{"id": "k06", "question": "What is the 50/30/20 rule?", "expected_sources": ["building-a-budget:s3"], "type": "exact_term", "note": "Budget guideline section."}
+{"id": "k07", "question": "How many months of expenses should I keep for emergencies?", "expected_sources": ["emergency-fund:s1"], "type": "concept", "note": "3-6 months guideline."}
+{"id": "k08", "question": "Should my rainy-day money be in the stock market?", "expected_sources": ["emergency-fund:s2"], "type": "paraphrase", "note": "'Where to keep it' — safe and liquid, not stocks."}
+{"id": "k09", "question": "Which credit card should I pay off first, the highest rate or the smallest balance?", "expected_sources": ["managing-debt:s2"], "type": "paraphrase", "note": "Avalanche vs snowball."}
+{"id": "k10", "question": "How much do I need to put away each month to reach a savings target?", "expected_sources": ["setting-financial-goals:s3"], "type": "paraphrase", "note": "'Working out the monthly saving'."}
+{"id": "k11", "question": "What's the difference between a market order and a limit order?", "expected_sources": ["how-stock-markets-work:s4"], "type": "exact_term", "note": "Order types section."}
+{"id": "k12", "question": "What does the S&P 500 measure?", "expected_sources": ["market-indexes:s0", "market-indexes:s1"], "type": "exact_term", "note": "Best-known US indexes."}
+{"id": "k13", "question": "How big a drop counts as a bear market?", "expected_sources": ["bull-and-bear-markets:s2", "bull-and-bear-markets:s3"], "type": "concept", "note": "20% from a recent high (correction 10-20%)."}
+{"id": "k14", "question": "What does it mean when a stock trades above its 50-day moving average?", "expected_sources": ["market-volatility:s2"], "type": "exact_term", "note": "Moving averages section."}
+{"id": "k15", "question": "Is it better to invest a fixed amount every month instead of all at once?", "expected_sources": ["dollar-cost-averaging:s0", "dollar-cost-averaging:s4"], "type": "paraphrase", "note": "DCA definition and limits (lump sum)."}
+{"id": "k16", "question": "My portfolio drifted from 60/40 to 70/30 — what does that mean?", "expected_sources": ["asset-allocation:s4"], "type": "paraphrase", "note": "Rebalancing section."}

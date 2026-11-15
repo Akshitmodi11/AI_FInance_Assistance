@@ -56,3 +56,23 @@ def test_goal_projection_has_three_scenarios_and_target():
     fig = charts.goal_projection(plan)
     assert [t.name for t in fig.data] == ["High return", "Low return", "Expected"]
     assert fig.layout.shapes[0].y0 == plan["target_in_future_dollars"]
+
+
+def test_retrieval_modes_bar_two_series_on_one_axis():
+    rows = [
+        {"mode": "hybrid", "recall": 0.92, "mrr": 0.79},
+        {"mode": "rerank", "recall": 0.96, "mrr": 0.9},
+    ]
+    fig = charts.retrieval_modes_bar(rows)
+    assert [t.name for t in fig.data] == ["Recall@5", "MRR"]
+    assert list(fig.data[0].x) == ["hybrid", "rerank"] and list(fig.data[1].text) == [
+        "0.79",
+        "0.90",
+    ]
+    assert fig.layout.yaxis.range == (0, 1.1)
+
+
+def test_count_bar_sorted_largest_first():
+    fig = charts.count_bar({"md": 83, "pdf": 544, "html": 41}, "Chunks by file type")
+    assert list(fig.data[0].y) == ["pdf", "md", "html"]
+    assert not fig.layout.showlegend or len(fig.data) == 1

@@ -21,7 +21,7 @@ from src.core.schemas import (
 )
 from src.data.market import MarketData
 from src.data.providers.base import ProviderError
-from src.data.reference import ticker_info
+from src.data.reference import find_company_tickers, ticker_info
 from src.utils import finance_math as fm
 
 # ---------- parsing ----------
@@ -37,15 +37,17 @@ _NUM = r"(\d+(?:\.\d+)?)"
 
 
 def extract_tickers(text: str) -> list[str]:
-    """Uppercase symbols like ``AAPL`` or ``$TSLA``; ignores finance acronyms (IRA, ETF, …)."""
-    found: list[str] = []
+    """Tickers in the order they appear: uppercase symbols (``AAPL``, ``$TSLA``), company names
+    ("nvidia", "Coca-Cola") and lowercase known symbols ("voo"); ignores acronyms (IRA, ETF, …)."""
+    hits = find_company_tickers(text)
+    named = {pos for pos, _ in hits}  # "APPLE" is the company, not a symbol "APPLE"
     for match in re.finditer(rf"(?<![A-Za-z]){_TICKER}(?![A-Za-z])", text):
         symbol = match.group(1)
         explicit = text[match.start()] == "$"
         allowed = symbol not in _NOT_TICKERS or explicit
-        if allowed and symbol not in found and (explicit or len(symbol) >= 2):
-            found.append(symbol)
-    return found
+        if allowed and (explicit or len(symbol) >= 2) and match.start(1) not in named:
+            hits.append((match.start(), symbol))
+    return list(dict.fromkeys(symbol for _, symbol in sorted(hits)))
 
 
 def parse_holdings(text: str) -> Portfolio:

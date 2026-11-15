@@ -1,4 +1,4 @@
-"""Compare dense vs sparse vs hybrid retrieval on the labeled question set.
+"""Compare dense vs sparse vs hybrid vs rerank retrieval on the labeled question set.
 
 Usage (after ``python -m src.rag.ingest``):
     python -m tests.eval.run_retrieval_eval            # all modes, k=5
@@ -28,7 +28,7 @@ from src.rag.retriever import Retriever
 from tests.eval.metrics import first_match_rank, mean_reciprocal_rank, recall_at_k
 
 DATASET = Path(__file__).with_name("retrieval_set.jsonl")
-MODES = ("dense", "sparse", "hybrid")
+MODES = ("dense", "sparse", "hybrid", "rerank")
 
 
 def load_dataset(path: Path = DATASET) -> list[dict]:

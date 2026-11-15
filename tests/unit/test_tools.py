@@ -46,6 +46,14 @@ def test_extract_tickers_ignores_acronyms():
     assert extract_tickers("what is a roth ira") == []
 
 
+def test_extract_tickers_understands_company_names_and_lowercase():
+    assert extract_tickers("how is nvidia doing vs Apple?") == ["NVDA", "AAPL"]
+    assert extract_tickers("price of nvda and voo") == ["NVDA", "VOO"]
+    assert extract_tickers("Compare APPLE and $TSLA with tesla") == ["AAPL", "TSLA"]
+    assert extract_tickers("Is Bank of America better than JPM?") == ["BAC", "JPM"]
+    assert extract_tickers("I spy a budget leak") == []  # everyday words stay words
+
+
 def test_parse_goal():
     goal = parse_goal(
         "I want to save $50,000 for a house in 5 years. I have $5k saved and can add $500 a month"
@@ -101,3 +109,24 @@ def test_plan_goal_without_monthly_charts_required_path():
     assert plan.yearly_projection[-1]["expected"] == pytest.approx(
         plan.target_in_future_dollars, rel=1e-6
     )
+
+
+@pytest.mark.parametrize(
+    ("typed", "ticker"),
+    [
+        ("nvidia", "NVDA"),
+        ("NVIDIA Corp.", "NVDA"),
+        (" nvda ", "NVDA"),
+        ("$nvda", "NVDA"),
+        ("Netflix", "NFLX"),
+        ("berkshire hathaway", "BRK.B"),
+        ("nvidia stock price", "NVDA"),
+        ("PLTR", "PLTR"),  # unlisted symbols pass through
+        ("what is money", None),
+        ("", None),
+    ],
+)
+def test_resolve_ticker(typed, ticker):
+    from src.data.reference import resolve_ticker
+
+    assert resolve_ticker(typed) == ticker
