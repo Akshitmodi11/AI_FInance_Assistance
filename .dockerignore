@@ -16,3 +16,5 @@ tests
 docs
 *.md
 !README.md
+frontend/node_modules
+frontend/dist

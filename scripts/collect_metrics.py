@@ -72,7 +72,7 @@ RECORDED = {
             for row in LATENCY
         ],
     },
-    "tests": {"date": "2026-11-14", "passed": 188, "coverage": 0.91, "gate": 0.80},
+    "tests": {"date": "2026-11-15", "passed": 210, "coverage": 0.91, "gate": 0.80},
     "experiments": [
         dict(zip(("date", "experiment", "result", "decision"), row, strict=True))
         for row in EXPERIMENTS

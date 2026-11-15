@@ -13,7 +13,7 @@ Summary (updated 2026-11-14):
 | Cost | **$0.004–0.006 per question** (gpt-4o-mini routing + gpt-4o answers) |
 | Ingest | 192 documents → 668 chunks in **15 s** (incl. model load) |
 | Market data | cold 0.7–1.1 s → cached **<1 ms** (30-min disk cache) |
-| Tests | **183 tests, 91% coverage**, enforced ≥80% in CI |
+| Tests | **210 tests, 91% coverage**, enforced ≥80% in CI |
 
 Reproduce everything:
 ```
