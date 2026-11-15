@@ -12,7 +12,7 @@ import streamlit as st  # noqa: E402
 from src.core.config import get_secrets  # noqa: E402
 from src.core.schemas import UserProfile  # noqa: E402
 from src.utils import disclaimers  # noqa: E402
-from src.web_app.tabs import chat, goals, knowledge, markets, portfolio  # noqa: E402
+from src.web_app.tabs import chat, goals, insights, knowledge, markets, portfolio  # noqa: E402
 
 st.set_page_config(page_title="Finnie — AI Finance Assistant", page_icon="💸", layout="wide")
 
@@ -56,7 +56,9 @@ def sidebar() -> dict:
 
 def main() -> None:
     profile = sidebar()
-    tabs = st.tabs(["💬 Chat", "📊 Portfolio", "📈 Markets", "🎯 Goals", "📚 Knowledge"])
+    tabs = st.tabs(
+        ["💬 Chat", "📊 Portfolio", "📈 Markets", "🎯 Goals", "📚 Knowledge", "🔬 Insights"]
+    )
     with tabs[0]:
         chat.render(profile)
     with tabs[1]:
@@ -67,6 +69,8 @@ def main() -> None:
         goals.render(profile)
     with tabs[4]:
         knowledge.render()
+    with tabs[5]:
+        insights.render()
 
 
 main()

@@ -10,12 +10,12 @@ number computed in Python, never by the LLM. Streamlit UI · CLI · MCP server f
 | | |
 |---|---|
 | 🧠 6 agents, parallel fan-out | Finance Q&A · Tax · Portfolio · Goals · Market · News |
-| 🔎 Hybrid RAG with citations | FAISS (or Qdrant) + BM25 + RRF · **Recall@5 0.92** · "I don't know" gate |
+| 🔎 Hybrid RAG + reranker, with citations | FAISS (or Qdrant) + BM25 + RRF → cross-encoder · **Recall@5 0.96, MRR 0.90** · "I don't know" gate |
 | 🧭 LLM router + fallback | **95% exact / 98% primary** on 60 labelled questions |
 | 🛡️ Guardrails | **18/18** safety prompts · no buy/sell advice · illegal requests refused |
 | 📈 Live data with fallbacks | Alpha Vantage → yfinance → mock · 30-min cache · freshness labels |
 | 💬 Memory | follow-ups like *"what about for a Roth?"* resolved from the conversation |
-| ✅ Quality | **163 tests, 91% coverage** (≥80% enforced in CI) · ~$0.005 and 3–5 s per question |
+| ✅ Quality | **188 tests, 91% coverage** (≥80% enforced in CI) · ~$0.005 and 3–5 s per question |
 
 ---
 
@@ -96,6 +96,7 @@ streamlit run src/web_app/app.py
 | 📈 Markets | index overview; any ticker with price chart, 20/50-day averages, 52-week range, source + freshness |
 | 🎯 Goals | target, years, savings, risk appetite → required monthly saving in 3 scenarios + projection chart |
 | 📚 Knowledge | search and browse the knowledge base behind the answers |
+| 🔬 Insights | every measured number: retrieval by mode, routing, safety, latency/cost, tests, KB make-up, experiment log |
 
 The sidebar sets your knowledge level (answers adapt), risk appetite (goal return bands) and horizon.
 
@@ -148,21 +149,22 @@ python -m scripts.mcp_smoke_test      # launches it like Claude Desktop does and
 ```bash
 python -m src.rag.ingest                                   # rebuild FAISS + BM25 + chunks.json
 python -m src.rag.qdrant_index                             # optional: upload to Qdrant
-python -m tests.eval.run_retrieval_eval --show-misses      # dense vs sparse vs hybrid
+python -m tests.eval.run_retrieval_eval --show-misses      # dense vs sparse vs hybrid vs rerank
 ```
 
 ## 5. Testing and evaluation
 
 ```bash
-pytest --cov=src                                           # 163 tests, offline (fake LLM, mocks)
+pytest --cov=src                                           # 188 tests, offline (fake LLM, mocks)
 ruff check . && ruff format --check .
 python -m tests.eval.run_agent_eval --llm --answers        # routing accuracy + safety (live)
 python -m scripts.benchmarks --runs 3                      # latency, tokens, cost, cache, ingest
+python -m scripts.collect_metrics                          # refresh data/metrics/metrics.json (Insights tab)
 ```
 
 | Evaluation | Result |
 |---|---|
-| Retrieval, 43 questions, page-level labels | hybrid **R@5 0.92**, MRR 0.73 (dense 0.86, sparse 0.78) |
+| Retrieval, 59 questions, page/section labels | **rerank R@5 0.96, MRR 0.90** · hybrid 0.92 / 0.79 · dense 0.90 · sparse 0.83; 16 new-topic questions 0.00 → 1.00 after adding 14 articles |
 | Routing, 60 questions | LLM **95% / 98%**, keyword fallback 88% / 92% |
 | Safety, 18 prompts | **18/18** guardrail, **9/9** reframed, **4/4** refused |
 | Latency / cost | p50 3.1–5.4 s, ~$0.004–0.006 per question |
@@ -187,7 +189,7 @@ python -m scripts.benchmarks --runs 3                      # latency, tokens, co
 src/core/         config (config.yaml + .env), typed schemas, LLM factory, graph state
 src/agents/       BaseAgent + 6 agents, deterministic tools
 src/workflow/     LangGraph graph, router, guardrails, synthesizer, deps, CLI
-src/rag/          loaders (md/pdf/html/docx), chunking, FAISS / Qdrant / BM25, RRF, retriever, ingest
+src/rag/          loaders (md/pdf/html/docx), chunking, FAISS / Qdrant / BM25, RRF, reranker, retriever, ingest
 src/data/         market data chain (Alpha Vantage, yfinance, mock), cache, rate limiter, news
 src/utils/        finance math, disclaimers
 src/mcp_server/   MCP server + Claude Desktop config example

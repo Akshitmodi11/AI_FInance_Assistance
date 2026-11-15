@@ -26,7 +26,8 @@ def render() -> None:
     c = st.columns(3)
     c[0].metric("Sources", len(by_doc))
     c[1].metric("Indexed chunks", len(store))
-    c[2].metric("Retrieval", "Hybrid (FAISS + BM25, RRF)")
+    mode = get_settings().rag.retrieval_mode
+    c[2].metric("Retrieval", "Hybrid + rerank" if mode == "rerank" else mode.capitalize())
 
     query = st.text_input("Search the knowledge base", placeholder="e.g. HSA contribution limit")
     category = st.selectbox("Category", ["All", *categories])

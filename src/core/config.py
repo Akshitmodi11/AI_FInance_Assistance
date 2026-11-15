@@ -56,7 +56,8 @@ class RAGConfig(BaseModel):
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     chunk_size: int = 800
     chunk_overlap: int = 120
-    retrieval_mode: Literal["dense", "sparse", "hybrid"] = "hybrid"
+    retrieval_mode: Literal["dense", "sparse", "hybrid", "rerank"] = "hybrid"
+    rerank_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     top_k: int = 5
     candidate_k: int = 20
     rrf_k: int = 60

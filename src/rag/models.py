@@ -77,12 +77,12 @@ class Evidence(BaseModel):
     """A retrieved chunk plus how it scored."""
 
     chunk: Chunk
-    score: float  # the score results are ordered by (cosine, BM25 or RRF depending on mode)
+    score: float  # what results are ordered by: cosine, BM25, RRF or cross-encoder (per mode)
     dense_score: float | None = None  # cosine similarity, used for the confidence gate
 
 
 class RetrievalResult(BaseModel):
     evidence: list[Evidence] = Field(default_factory=list)
-    mode: Literal["dense", "sparse", "hybrid"]
+    mode: Literal["dense", "sparse", "hybrid", "rerank"]
     confident: bool  # False -> the agent should say "I don't have reliable info on that"
     top_dense_score: float | None = None

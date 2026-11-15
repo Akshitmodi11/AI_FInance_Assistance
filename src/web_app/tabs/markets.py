@@ -5,6 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from src.data.providers.base import ProviderError
+from src.data.reference import resolve_ticker, ticker_info
 from src.web_app.components import charts
 from src.web_app.components.ui import get_deps, source_badge
 
@@ -31,9 +32,18 @@ def render() -> None:
         except ProviderError:
             col.metric(f"{name} ({ticker})", "n/a", border=True)
 
-    ticker = st.text_input("Look up a ticker", value="VTI", max_chars=10).strip().upper()
-    if not ticker:
+    typed = st.text_input(
+        "Look up a ticker or company", value="VTI", max_chars=40, placeholder="NVDA or nvidia"
+    )
+    if not typed.strip():
         return
+    ticker = resolve_ticker(typed)
+    if ticker is None:
+        st.warning(f"Couldn't match “{typed.strip()}” to a ticker — try the symbol, e.g. NVDA.")
+        return
+    if ticker != typed.strip().lstrip("$").upper():
+        name = ticker_info(ticker).name
+        st.caption(f"Showing **{ticker}**" + (f" — {name}" if name != ticker else ""))
     with st.spinner(f"Loading {ticker}…"):
         try:
             snap, history = market.snapshot(ticker)

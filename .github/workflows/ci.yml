@@ -9,7 +9,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.12"
@@ -33,9 +33,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Build image (installs deps, builds the RAG index, downloads the model)
-        run: docker build -t finnie:ci .
+        # one retry: base-image pulls occasionally fail transiently (seen once, same commit passed later)
+        run: docker build -t finnie:ci . || (sleep 20 && docker build -t finnie:ci .)
       - name: Smoke-test the image (no API keys → offline fallbacks)
         run: |
           docker run -d --name finnie -p 8501:8501 -e HF_HUB_OFFLINE=1 finnie:ci

@@ -2,6 +2,8 @@
 
     query ─┬─▶ dense  top candidate_k ─┐
            └─▶ sparse top candidate_k ─┴─▶ RRF ─▶ category filter ─▶ top k ─▶ RetrievalResult
+                                                                    ▲
+                                    rerank mode: cross-encoder reorders the filtered candidates
 
 The confidence gate: RRF scores only encode *position*, so even nonsense queries get a
 "top" result with a normal-looking RRF score. Confidence therefore comes from the best
@@ -20,10 +22,11 @@ from src.rag.dense_index import DenseIndex
 from src.rag.embeddings import Embedder, SentenceTransformerEmbedder
 from src.rag.fusion import reciprocal_rank_fusion
 from src.rag.models import Evidence, RetrievalResult
+from src.rag.reranker import CrossEncoderReranker, Reranker
 from src.rag.sparse_index import SparseIndex
 from src.rag.store import ChunkStore
 
-Mode = Literal["dense", "sparse", "hybrid"]
+Mode = Literal["dense", "sparse", "hybrid", "rerank"]
 
 
 class VectorIndex(Protocol):
@@ -57,6 +60,7 @@ class Retriever:
         candidate_k: int = 20,
         rrf_k: int = 60,
         min_score: float = 0.35,
+        reranker: Reranker | None = None,
     ):
         self.store = store
         self.dense = dense
@@ -67,6 +71,7 @@ class Retriever:
         self.candidate_k = candidate_k
         self.rrf_k = rrf_k
         self.min_score = min_score
+        self.reranker = reranker
 
     @classmethod
     def from_settings(cls, settings: Settings, embedder: Embedder | None = None) -> Retriever:
@@ -90,6 +95,7 @@ class Retriever:
             candidate_k=rag.candidate_k,
             rrf_k=rag.rrf_k,
             min_score=rag.min_score,
+            reranker=CrossEncoderReranker(rag.rerank_model),  # lazy: loads only if rerank is used
         )
 
     def retrieve(
@@ -109,6 +115,7 @@ class Retriever:
           for the returned chunks so the confidence gate works in every mode.
         * hybrid: fuse the two candidate lists with RRF; ``score = rrf``,
           ``dense_score = cosine`` (compute it if the chunk only came from BM25).
+        * rerank: hybrid candidates, then the cross-encoder reorders them; ``score`` = its score.
         * ``category``: drop evidence from other categories. Filter *before* cutting to k,
           and fetch ``candidate_k`` candidates so filtering doesn't leave you with nothing.
         * ``confident = top_dense_score >= min_score`` where ``top_dense_score`` is the max
@@ -119,6 +126,8 @@ class Retriever:
         k = k or self.top_k
         if not query.strip():
             return RetrievalResult(mode=mode, confident=False)
+        if mode == "rerank" and self.reranker is None:
+            raise ValueError("rerank mode needs a reranker")
 
         query_vec = self.embedder.embed([query])[0]
 
@@ -136,9 +145,17 @@ class Retriever:
         else:
             ranked = reciprocal_rank_fusion([list(dense_hits), list(sparse_hits)], k=self.rrf_k)
 
-        # 3. Category filter BEFORE cutting to k.
+        # 3. Category filter BEFORE cutting to k (and before reranking).
         if category:
             ranked = [(row, s) for row, s in ranked if self.store[row].meta.category == category]
+
+        # 3b. Rerank: the cross-encoder reads (query, chunk) pairs for all filtered candidates.
+        if mode == "rerank" and ranked:
+            texts = [self.store[row].embedding_text for row, _ in ranked]
+            scores = self.reranker.score(query, texts)
+            ranked = sorted(
+                zip((row for row, _ in ranked), scores, strict=True), key=lambda x: -x[1]
+            )
         ranked = ranked[:k]
 
         # 4. Evidence — dense_score must be filled even for BM25-only hits (gate needs it).
